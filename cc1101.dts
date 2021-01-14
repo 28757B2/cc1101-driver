@@ -1,0 +1,76 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+    compatible = "brcm,bcm2708";
+
+    fragment@0 {
+        target = <&spidev0>;
+
+        __overlay__ {
+            status = "disabled";
+        };
+    };
+
+    fragment@1 {
+        target = <&spidev1>;
+
+        __overlay__ {
+            status = "disabled";
+        };
+    };
+
+    fragment@2 {
+        target = <&spi0>;
+
+         __overlay__ {
+            #address-cells = <1>;
+            #size-cells = <0>;
+            pinctrl-names = "default";
+            pinctrl-0 = <&spi0_pins &spi0_cs_pins>;
+            cs-gpios = <&gpio 8 1>, <&gpio 7 1>;
+
+            cc1101_0_0: cc1101@0 {
+                compatible = "ti,cc1101";
+                spi-max-frequency = <6500000>;
+                spi-cpol;
+                spi-cpha;
+                reg = <0>;
+                pinctrl-0 = <&cc1101_0_0_int_pin>;
+                int-gpios = <&gpio 25 0>;
+                interrupts = <25 1>;
+                interrupt-parent = <&gpio>;
+            };
+
+            cc1101_0_1: cc1101@1 {
+                compatible = "ti,cc1101";
+                spi-max-frequency = <6500000>;
+                spi-cpol;
+                spi-cpha;
+                reg = <1>;
+                pinctrl-0 = <&cc1101_0_1_int_pin>;
+                int-gpios = <&gpio 24 0>;
+                interrupts = <24 1>;
+                interrupt-parent = <&gpio>;
+            };
+         };
+    };
+
+    fragment@3 {
+        target = <&gpio>;
+
+        __overlay__ {
+            cc1101_0_0_int_pin: cc1101_0_0_int_pin {
+                brcm,pins = <25>;
+                brcm,function = <0>;
+                prcm,pull = <0>;
+            };
+
+            cc1101_0_1_int_pin: cc1101_0_1_int_pin {
+                brcm,pins = <24>;
+                brcm,function = <0>;
+                prcm,pull = <0>;
+            };
+        };
+    };
+};
