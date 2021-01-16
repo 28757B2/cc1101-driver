@@ -9,13 +9,8 @@
 
 #include "cc1101_internal.h"
 
-typedef union {
-    unsigned char data;
-    unsigned char status;
-} data_status_t;
-
 typedef struct {
-    data_status_t header;
+    unsigned char header;
     unsigned char data;
 } spi_transaction_t;
 

@@ -28,7 +28,7 @@ spi_transaction_t cc1101_spi_read_config_register(cc1101_t* cc1101, unsigned cha
 
     WARN_ON(reg > 0x2E);
 
-    transaction.header.data = reg | SPI_READ;
+    transaction.header = reg | SPI_READ;
     transaction.data = 0;
 
     t.tx_buf = &transaction;
@@ -61,7 +61,7 @@ unsigned char cc1101_spi_write_config_register(cc1101_t* cc1101, unsigned char r
 
     WARN_ON(reg > 0x2E);
 
-    transaction.header.data = reg;
+    transaction.header = reg;
     transaction.data = value;
 
     t.tx_buf = &transaction,
@@ -73,7 +73,7 @@ unsigned char cc1101_spi_write_config_register(cc1101_t* cc1101, unsigned char r
     spi_message_add_tail(&t, &m);
     spi_sync(cc1101->spi, &m);
 
-    return transaction.header.status;
+    return transaction.header;
 }
 
 /* 
@@ -173,9 +173,9 @@ unsigned char cc1101_spi_read_rxfifo(cc1101_t* cc1101, unsigned char* rx_bytes, 
 static unsigned char write_registers(cc1101_t* cc1101, unsigned char reg, const unsigned char* in, unsigned char len) {
     struct spi_transfer t = {0};
     struct spi_message m;
-    data_status_t transaction[FIFO_LEN + 1];
+    unsigned char transaction[FIFO_LEN + 1];
 
-    transaction[0].data = reg | SPI_BURST;
+    transaction[0] = reg | SPI_BURST;
     memcpy(&transaction[1], in, len);
 
     t.tx_buf = &transaction;
@@ -187,7 +187,7 @@ static unsigned char write_registers(cc1101_t* cc1101, unsigned char reg, const 
     spi_message_add_tail(&t, &m);
     spi_sync(cc1101->spi, &m);
 
-    return transaction[len].status;
+    return transaction[len];
 }
 
 /* 
@@ -251,11 +251,11 @@ unsigned char cc1101_spi_write_txfifo(cc1101_t* cc1101, const unsigned char* tx_
 unsigned char cc1101_spi_send_command(cc1101_t* cc1101, unsigned char command) {
     struct spi_transfer t = {0};
     struct spi_message m;
-    data_status_t transaction;
+    unsigned char transaction;
 
     WARN_ON(command < 0x30 || command > 0x3D);
 
-    transaction.data = command;
+    transaction = command;
 
     t.tx_buf = &transaction;
     t.rx_buf = &transaction;
@@ -266,7 +266,7 @@ unsigned char cc1101_spi_send_command(cc1101_t* cc1101, unsigned char command) {
     spi_message_add_tail(&t, &m);
     spi_sync(cc1101->spi, &m);
 
-    return transaction.status;
+    return transaction;
 }
 
 /* 
@@ -287,7 +287,7 @@ static spi_transaction_t cc1101_spi_read_status_register_int(cc1101_t* cc1101, u
     WARN_ON(reg < 0x30 || reg > 0x3D);
 
     // Status registers require the burst bit to be set
-    transaction.header.data = reg | SPI_BURST | SPI_READ;
+    transaction.header = reg | SPI_BURST | SPI_READ;
     transaction.data = 0;
 
     t.tx_buf = &transaction;
