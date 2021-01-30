@@ -124,7 +124,7 @@ void cc1101_rx(cc1101_t* cc1101)
 */
 static void tx_multi(cc1101_t* cc1101, const char* buf, size_t len){
 
-    u32 remainder, bytes_remaining;
+    size_t remainder, bytes_remaining;
     unsigned char tx_bytes;
 
     // Calculate number of bytes in the last fragment of the packet
@@ -311,8 +311,8 @@ irqreturn_t cc1101_rx_interrupt(int irq, void *handle)
 {   
     cc1101_t* cc1101 = handle;
 
-    u32 i;
-    u32 fifo_available;
+    size_t i;
+    int fifo_available;
     unsigned char rx_bytes;
 
     CC1101_DEBUG(cc1101, "Interrupt\n");
