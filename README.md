@@ -6,7 +6,7 @@ The CC1101 is a general purpose packet radio that operates in the Sub-GHz Indust
 
 This driver allows the use of inexpensive CC1101 Serial Peripheral Interface (SPI) modules, which can be directly interfaced to the Pi's GPIOs. A kernel module allows the CC1101 to operate using hardware interrupts instead of polling, which increases the accuracy of packet reception. 
 
-A [Python module](https://github.com/28757B2/python-cc1101) also exists to configure the driver and receive and transmit packets.
+A [Python module](https://github.com/28757B2/cc1101-python) also exists to configure the driver and receive and transmit packets.
 
 Use of this software is at your own risk. You are responsible for complying with local laws and regulations.
 
