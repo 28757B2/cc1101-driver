@@ -88,7 +88,7 @@ Add the following to `/etc/modules`
     cc1101
 
 ### udev Rule
-By default, the `/dev/cc1101.x.x` devices will belong to `root:root`. The following udev rule in `/etc/udev/rules.d/50-cc1011.rules` will assign the devices to the `pi` user:
+By default, the `/dev/cc1101.x.x` devices will belong to `root:root`. The following udev rule in `/etc/udev/rules.d/50-cc1101.rules` will assign the devices to the `pi` user:
 
     SUBSYSTEM=="cc1101", OWNER="pi", GROUP="pi", MODE="0660"
 
