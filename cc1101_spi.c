@@ -106,7 +106,7 @@ static unsigned char read_registers(cc1101_t* cc1101, unsigned char reg, unsigne
 
     memcpy(out, &transaction[1], len);
 
-    return transaction[len];
+    return transaction[0];
 }
 
 /* 
@@ -187,7 +187,7 @@ static unsigned char write_registers(cc1101_t* cc1101, unsigned char reg, const 
     spi_message_add_tail(&t, &m);
     spi_sync(cc1101->spi, &m);
 
-    return transaction[len];
+    return transaction[0];
 }
 
 /* 

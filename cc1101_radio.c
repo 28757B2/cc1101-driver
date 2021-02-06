@@ -9,6 +9,7 @@
 
 #include <linux/delay.h>
 #include <linux/kfifo.h>
+#include <linux/jiffies.h>
 
 /*
 *   Change the hardware and driver state. Delays based on the state transition times in the datasheet
@@ -87,6 +88,28 @@ static void change_state(cc1101_t* cc1101, cc1101_mode_t to){
     cc1101->mode = to;
     cc1101_spi_send_command(cc1101, command);
     udelay(delay);
+}
+
+/*
+* Flush the device's RXFIFO, returning to the idle state
+*
+* Arguments:
+*   cc1101: device struct
+*/
+void cc1101_flush_rx_fifo(cc1101_t *cc1101){
+    cc1101_spi_send_command(cc1101, SFRX);
+    cc1101->mode = MODE_IDLE;
+}
+
+/*
+* Flush the device's TXFIFO, returning to the idle state
+*
+* Arguments:
+*   cc1101: device struct
+*/
+void cc1101_flush_tx_fifo(cc1101_t *cc1101){
+    cc1101_spi_send_command(cc1101, SFTX);
+    cc1101->mode = MODE_IDLE;
 }
 
 /*
@@ -268,7 +291,7 @@ void cc1101_tx(cc1101_t* cc1101, const char* buf, size_t len){
     change_state(cc1101, MODE_IDLE);
     
     // Flush the TXFIFO
-    cc1101_spi_send_command(cc1101, SFTX);
+    cc1101_flush_tx_fifo(cc1101);
     
     // Return to RX mode if configured
     if(cc1101->rx_config.packet_length > 0){
@@ -299,6 +322,11 @@ void cc1101_reset(cc1101_t* cc1101)
     kfifo_free(&cc1101->rx_fifo);
 }
 
+// Longest to expect between interrupts. At 0.6 kBaud (75 bytes/sec), time to fill to FIFOTHR (32 bytes) should be ~425ms, so 1000ms here seems reasonable
+// If an interrupt is missed, the RXFIFO will overflow and the device will not send any further interrupts, causing the device to lock indefinitely.
+// This value is used to set a timer that ensures the interrupt handler will trigger and unlock the device if this occurs.
+#define RX_TIMEOUT_MS 1000
+
 /*
 * Interrupt handler function called when the device raises GDO2
 * The default receive configuration instructs it to raise GDO2 when the RX FIFO has received x bytes 
@@ -314,21 +342,24 @@ irqreturn_t cc1101_rx_interrupt(int irq, void *handle)
     size_t i;
     int fifo_available;
     unsigned char rx_bytes;
-
+    
     CC1101_DEBUG(cc1101, "Interrupt\n");
 
     // Interrupt is only used when the driver is in receive mode
     if(cc1101->mode == MODE_RX){
 
+        // Stop the RX timeout timer (if it's running) while processing the interrupt
+        del_timer(&cc1101->rx_timeout);
+
         // Read the number of bytes in the device's RX FIFO
         rx_bytes = cc1101_spi_read_status_register(cc1101, RXBYTES).data;
 
-        // If an overflow has occured
+        // If an overflow has occured part of the packet will have been missed, so reset and wait for the next packet
         if(rx_bytes > FIFO_LEN) {
-            CC1101_ERROR(cc1101, "RXFIFO Overflow, Waiting for Next Packet\n");
+            CC1101_ERROR(cc1101, "RXFIFO Overflow. If this error persists, decrease baud rate\n");
             
             // Flush the RXFIFO
-            cc1101_spi_send_command(cc1101, SFRX);
+            cc1101_flush_rx_fifo(cc1101);
 
             // Reset SYNC_MODE to the value from the config
             cc1101_spi_write_config_register(cc1101, MDMCFG2, cc1101_get_mdmcfg2(&cc1101->rx_config.common, cc1101->rx_config.carrier_sense));
@@ -336,11 +367,9 @@ irqreturn_t cc1101_rx_interrupt(int irq, void *handle)
             // Put the device back into receive mode ready to receive the next packet
             change_state(cc1101, MODE_RX);
 
-            // Unlock mutex and reset packet count if the error occured mid-receive
-            if(cc1101->bytes_remaining != 0){
-                cc1101->bytes_remaining = 0;
-                mutex_unlock(&cc1101->lock);
-            }
+            // Unlock mutex and reset packet count
+            cc1101->bytes_remaining = 0;
+            mutex_unlock(&cc1101->lock);
 
             return IRQ_HANDLED;
         }
@@ -370,6 +399,8 @@ irqreturn_t cc1101_rx_interrupt(int irq, void *handle)
             // This prevents a situation where more bytes are expected for the current packet but another interrupt doesn't occur
             cc1101_spi_write_config_register(cc1101, MDMCFG2, cc1101_get_mdmcfg2(&cc1101->rx_config.common, cc1101->rx_config.carrier_sense) & 0xF8);
 
+            // Start a timer for how long we should wait for another interrupt to arrive
+            mod_timer(&cc1101->rx_timeout, jiffies + msecs_to_jiffies(RX_TIMEOUT_MS));
         }
 
         // Something went wrong and there aren't any bytes in the RX FIFO even though GDO2 went high
@@ -386,6 +417,7 @@ irqreturn_t cc1101_rx_interrupt(int irq, void *handle)
         }
         // Received some bytes, but there are still some remaining in the packet to be received
         else if(rx_bytes < cc1101->bytes_remaining){
+
             CC1101_DEBUG(cc1101, "Received %d Bytes, Read %d Bytes, %d Bytes Remaining\n", rx_bytes, rx_bytes - 1, cc1101->bytes_remaining - (rx_bytes - 1)); 
             
             // Read the received number of bytes from the device's RX FIFO into the temporary buffer
@@ -394,10 +426,15 @@ irqreturn_t cc1101_rx_interrupt(int irq, void *handle)
             // Decrement the number of bytes left to receive in the packet
             cc1101->bytes_remaining = cc1101->bytes_remaining - (rx_bytes - 1);
 
+            //  Restart the timer for how long we should wait for another interrupt to arrive
+            mod_timer(&cc1101->rx_timeout, jiffies + msecs_to_jiffies(RX_TIMEOUT_MS));
+
             //Return without releasing the lock. The device is in the middle of a receive and can't be reconfigured
         }
         // Received a number of bytes greater than or equal to the number left in the packet 
         else {
+            del_timer(&cc1101->rx_timeout);
+
             CC1101_DEBUG(cc1101, "Received %d Bytes, Read %d Bytes, %d Bytes Remaining\n", rx_bytes, cc1101->bytes_remaining, 0); 
 
             // RX has finished and the required bytes are in the device's RX FIFO, so put the device in idle mode
@@ -409,13 +446,14 @@ irqreturn_t cc1101_rx_interrupt(int irq, void *handle)
             // Get the amount of space left in the received packet buffer
             fifo_available = kfifo_avail(&cc1101->rx_fifo);
 
-            // Remove oldest packet from the received packet buffer iff there is less than is required to hold the newly received packet
+            // Remove oldest packet from the received packet buffer if there is less than is required to hold the newly received packet
             if(fifo_available < cc1101->rx_config.packet_length){
                 CC1101_INFO(cc1101, "RX FIFO Full - Removing Packet");
                 for(i = 0; i < cc1101->rx_config.packet_length; i++){
                     kfifo_skip(&cc1101->rx_fifo);
                 }
             }
+
             // Add the new packet to the received packet buffer
             kfifo_in(&cc1101->rx_fifo, cc1101->current_packet, cc1101->rx_config.packet_length);
 
@@ -425,7 +463,7 @@ irqreturn_t cc1101_rx_interrupt(int irq, void *handle)
             cc1101->bytes_remaining = 0;
 
             // Flush the device's RX FIFO
-            cc1101_spi_send_command(cc1101, SFRX);
+            cc1101_flush_rx_fifo(cc1101);
 
             // Reset SYNC_MODE to the value from the config
             cc1101_spi_write_config_register(cc1101, MDMCFG2, cc1101_get_mdmcfg2(&cc1101->rx_config.common, cc1101->rx_config.carrier_sense));
@@ -439,3 +477,39 @@ irqreturn_t cc1101_rx_interrupt(int irq, void *handle)
     }
     return IRQ_HANDLED;
 }
+
+/*
+* Work function to recover from a missed interrupt in RX
+*
+* Arguments:
+*   work: rx_timeout_work struct of the device that has missed an interrupt 
+*/
+void cc1101_rx_timeout_work(struct work_struct *work){
+    // Get the device from the work_struct
+    cc1101_t *cc1101;
+    cc1101 = container_of(work, cc1101_t, rx_timeout_work);
+
+    // Call the interrupt handler, which will detect the RXFIFO overflow state from the device and recover
+    cc1101_rx_interrupt(cc1101->irq, cc1101);
+}
+
+/*
+* Receive timer callback. Called when an interrupt is expected during RX, but never arrives
+*
+* This can occur at high baud rates if the interrupt handler has not finished execution when the next interrupt arrives
+*
+* RXFIFO will have overflowed by the time this is called.
+*
+* Arguments:
+*   cc1101: device struct
+*/
+void cc1101_rx_timeout(struct timer_list *t){
+    // Get the device the timeout has occured on
+    cc1101_t *cc1101 = from_timer(cc1101, t, rx_timeout);
+    CC1101_ERROR(cc1101, "RX Interrupt Missed");
+
+    // Schedule the handler to be called in the process context to recover
+    INIT_WORK(&cc1101->rx_timeout_work, cc1101_rx_timeout_work);
+    schedule_work(&cc1101->rx_timeout_work);
+}
+

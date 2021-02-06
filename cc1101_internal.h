@@ -124,10 +124,12 @@ typedef enum {
     MODE_RX
 } cc1101_mode_t;
 
+
 // Struct to hold per-device state
 typedef struct {
     struct spi_device *spi;
     dev_t devt;
+    int irq;
     struct mutex lock;
     cc1101_mode_t mode;
     cc1101_tx_config_t tx_config;
@@ -135,6 +137,8 @@ typedef struct {
     unsigned char *current_packet;
     unsigned int bytes_remaining;
     DECLARE_KFIFO_PTR(rx_fifo, unsigned char);
+    struct timer_list rx_timeout;
+    struct work_struct rx_timeout_work;
 } cc1101_t;
 
 #endif

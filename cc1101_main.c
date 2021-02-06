@@ -29,7 +29,6 @@ static int cc1101_spi_probe(struct spi_device *spi)
     cc1101_t *cc1101;
     struct gpio_desc *gpio;
     spi_transaction_t partnum, version;
-    int irq;
 
     // Memory allocations - use devm_* functions so they are automatically freed
     // Allocate a new CC1101 struct
@@ -54,6 +53,9 @@ static int cc1101_spi_probe(struct spi_device *spi)
     // Initialise the device lock
     mutex_init(&cc1101->lock);
 
+    // Setup the RX timeout timer
+    timer_setup(&cc1101->rx_timeout, cc1101_rx_timeout, 0);
+
     // Read the CC1101 part and version numbers from the device registers
     partnum = cc1101_spi_read_status_register(cc1101, PARTNUM);
     version = cc1101_spi_read_status_register(cc1101, VERSION);
@@ -77,10 +79,10 @@ static int cc1101_spi_probe(struct spi_device *spi)
     }
 
     // Get an IRQ for the GPIO
-    irq = gpiod_to_irq(gpio);
+    cc1101->irq = gpiod_to_irq(gpio);
 
     // Attach the interrupt handler to the GPIO
-    if(devm_request_threaded_irq(&spi->dev, irq, NULL, cc1101_rx_interrupt, IRQF_TRIGGER_RISING | IRQF_ONESHOT, dev_name(&spi->dev), cc1101) != 0){
+    if(devm_request_threaded_irq(&spi->dev, cc1101->irq, NULL, cc1101_rx_interrupt, IRQF_TRIGGER_RISING | IRQF_ONESHOT, dev_name(&spi->dev), cc1101) != 0){
         dev_err(&spi->dev, "Failed to setup interrupt handler");
         return -ENODEV;
     }
@@ -106,6 +108,9 @@ static int cc1101_spi_remove(struct spi_device *spi)
 {
     cc1101_t* cc1101;
     cc1101 = spi_get_drvdata(spi);
+
+    // Remove the RX timeout timer
+    del_timer(&cc1101->rx_timeout);
 
     // Reset the hardware, placing it in idle mode
     cc1101_reset(cc1101);
