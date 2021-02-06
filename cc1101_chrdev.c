@@ -121,6 +121,7 @@ static long chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
         // Reset the device and driver state
         case CC1101_RESET:
+            CC1101_INFO(cc1101, "Reset");
             cc1101_reset(cc1101);
             return 0;
 
@@ -138,8 +139,8 @@ static long chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
                 return -EINVAL;
             }
 
-            // CC1101 should be idle before writing registers
-            cc1101_idle(cc1101);
+            // Reset the device
+            cc1101_reset(cc1101);
 
             // Write the TX config to the device
             cc1101_config_apply_tx(cc1101, &tx_config);
@@ -160,18 +161,16 @@ static long chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
                 return -EINVAL;
             }
 
-            // Free the RX FIFO
-            kfifo_free(&cc1101->rx_fifo);
+            // Reset the device
+            cc1101_reset(cc1101);
 
-            // Allocate a new RX FIFO based on the provided packet size and the maximum number of queued packets
+            // Replace the RX FIFO with a new one based on the provided packet size and the maximum number of queued packets
+            kfifo_free(&cc1101->rx_fifo);
             if(kfifo_alloc(&cc1101->rx_fifo, rx_config.packet_length * rx_fifo_size, GFP_KERNEL) != 0) {
                 CC1101_ERROR(cc1101, "Failed to allocate packet FIFO memory");
                 return -ENOMEM;
             }
-            
-            // CC1101 should be idle before writing registers
-            cc1101_idle(cc1101);
-            
+
             // Write the RX config to the device
             cc1101_config_apply_rx(cc1101, &rx_config);
             

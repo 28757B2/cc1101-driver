@@ -319,7 +319,7 @@ void cc1101_reset(cc1101_t* cc1101)
     cc1101->bytes_remaining = 0;
 
     // Clear the RX FIFO
-    kfifo_free(&cc1101->rx_fifo);
+    kfifo_reset(&cc1101->rx_fifo);
 }
 
 // Longest to expect between interrupts. At 0.6 kBaud (75 bytes/sec), time to fill to FIFOTHR (32 bytes) should be ~425ms, so 1000ms here seems reasonable
