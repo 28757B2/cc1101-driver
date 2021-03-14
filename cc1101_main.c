@@ -63,7 +63,7 @@ static int cc1101_spi_probe(struct spi_device *spi)
     // Check the device is a CC1101
     if (partnum.data != 0x00 || version.data != 0x14)
     {
-        dev_info(&spi->dev, "Device not found");
+        dev_info(&spi->dev, "Device not found (Partnum: 0x%02x, Version: 0x%02x)", partnum.data, version.data);
         return -ENODEV;
     }
 
@@ -96,7 +96,7 @@ static int cc1101_spi_probe(struct spi_device *spi)
     // Associate the device struct to the parent SPI device
     spi_set_drvdata(spi, cc1101);
 
-    CC1101_INFO(cc1101, "Ready");
+    CC1101_INFO(cc1101, "Ready (Partnum: 0x%02x, Version: 0x%02x)", partnum.data, version.data);
 
     return 0;
 }
