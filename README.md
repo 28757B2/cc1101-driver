@@ -21,9 +21,7 @@ The driver supports a subset of the CC1101 hardware's features and provides a hi
 * Sync word or carrier sense triggered RX
 * 16/32 bit configurable sync word
 
-## Use with the Raspberry Pi
-
-### Physical Connection
+## Physical Connection (Raspberry Pi)
 The following connections should be made between the CC1101 module and the Raspberry Pi's GPIOs:
 
 | CC1101 Pin | Raspberry Pi GPIO |
@@ -44,6 +42,49 @@ A second radio can be connected to SPI bus 0 using the second chip enable pin:
 | GDO2       | 18                |
 
 Note: SPI Bus 1 on the Raspberry Pi 3 and earlier does not support the SPI mode required for the CC1101.
+
+## Quick Start Setup (Raspberry Pi OS)
+
+```bash
+# Install dependencies
+sudo apt install raspberrypi-kernel-headers dkms git
+
+# Clone repository
+sudo mkdir /usr/src/cc1101-1.0.0
+sudo chown -R pi:pi /usr/src/cc1101-1.0.0
+cd /usr/src/cc1101-1.0.0
+git clone https://github.com/28757B2/cc1101-driver.git .
+
+# Build with DKMS
+sudo dkms add -m cc1101 -v 1.0.0
+sudo dkms build -m cc1101 -v 1.0.0
+sudo dkms install -m cc1101 -v 1.0.0
+
+# Enable SPI
+sudo sed -i "s/^#dtparam=spi=on$/dtparam=spi=on/" /boot/config.txt
+
+# Compile Device Tree overlay
+sudo dtc -@ -I dts -O dtb -o /boot/overlays/cc1101.dtbo cc1101.dts
+
+# Enable Device Tree overlay
+echo "dtoverlay=cc1101" | sudo tee -a /boot/config.txt
+
+# Enable module loading at boot
+echo "cc1101" | sudo tee -a /etc/modules
+
+# Assign /dev/cc1101.x.x devices to pi user/group
+echo 'SUBSYSTEM=="cc1101", OWNER="pi", GROUP="pi", MODE="0660"' | sudo tee -a /etc/udev/rules.d/50-cc1101.rules
+
+# Reboot to apply config
+reboot
+```
+
+After rebooting, entries should appear in the `dmesg` output depending on where the CC1101 is attached:
+
+    [    6.305355] cc1101 spi0.1: Device not found
+    [    6.317896] cc1101 spi0.0: Ready
+
+## Setup
 
 ### Dependencies
 
