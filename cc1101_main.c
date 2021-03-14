@@ -61,7 +61,7 @@ static int cc1101_spi_probe(struct spi_device *spi)
     version = cc1101_spi_read_status_register(cc1101, VERSION);
 
     // Check the device is a CC1101
-    if (partnum.data != 0x00 || version.data != 0x14)
+    if (partnum.data != 0x00 || (version.data != 0x04 && version.data != 0x14))
     {
         dev_info(&spi->dev, "Device not found (Partnum: 0x%02x, Version: 0x%02x)", partnum.data, version.data);
         return -ENODEV;
