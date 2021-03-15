@@ -287,8 +287,8 @@ void cc1101_tx(cc1101_t* cc1101, const char* buf, size_t len){
         tx_single(cc1101, buf, len);
     }
 
-    // Transmission complete, put the device back into idle mode
-    change_state(cc1101, MODE_IDLE);
+    // Set the device to idle
+    cc1101_idle(cc1101);
     
     // Flush the TXFIFO
     cc1101_flush_tx_fifo(cc1101);
@@ -296,7 +296,7 @@ void cc1101_tx(cc1101_t* cc1101, const char* buf, size_t len){
     // Return to RX mode if configured
     if(cc1101->rx_config.packet_length > 0){
         // Restore RX config
-        cc1101_config_apply_rx(cc1101, &cc1101->rx_config);
+        cc1101_config_apply_rx(cc1101);
         cc1101_rx(cc1101);
     }
 }

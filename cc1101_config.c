@@ -236,9 +236,12 @@ int cc1101_config_validate_common(cc1101_t *cc1101, const cc1101_common_config_t
 */
 int cc1101_config_validate_tx(cc1101_t *cc1101, const cc1101_tx_config_t *tx_config) {
 
+    // Validate the common configuration
     if (!cc1101_config_validate_common(cc1101, (cc1101_common_config_t *)tx_config)) {
         return 0;
     }
+
+    // No additional validation for the TX config. Any byte is valid for tx_power
 
     return 1;
 }
@@ -251,11 +254,12 @@ int cc1101_config_validate_tx(cc1101_t *cc1101, const cc1101_tx_config_t *tx_con
 *   rx_config: an RX config struct
 *
 * Returns:
-* 0  - Valid Config
-* <0 - Invalid config
+* 1  - Valid Config
+* 0 - Invalid config
 */
 int cc1101_config_validate_rx(cc1101_t *cc1101, const cc1101_rx_config_t *rx_config) {
     
+    // Validate the common configuration
     if (!cc1101_config_validate_common(cc1101, (cc1101_common_config_t *)rx_config)) {
         return 0;
     }
@@ -288,33 +292,27 @@ int cc1101_config_validate_rx(cc1101_t *cc1101, const cc1101_rx_config_t *rx_con
 }
 
 /*
-* Applies a TX config to the hardware. Configuration MUST already have been validated
+* Apply a stored TX config to the hardware
 * 
 * Arguments:
 *   cc1101: cc1101 device
-*   tx_config: a TX config struct
 *
 */
-void cc1101_config_apply_tx(cc1101_t *cc1101, const cc1101_tx_config_t *tx_config) {
+void cc1101_config_apply_tx(cc1101_t *cc1101) {
     cc1101_device_config_t device_config;
     cc1101_patable_t patable = {0};
 
-    // Don't copy the config to the CC1101 struct if the CC1101 struct is the origin
-    if (&cc1101->tx_config != tx_config) {
-        memcpy(&cc1101->tx_config, tx_config, sizeof(cc1101_tx_config_t));
-    }
-
     // Convert the configuration to a set of register values
-    cc1101_config_tx_to_device(device_config, tx_config);
+    cc1101_config_tx_to_registers(device_config, &cc1101->tx_config);
 
-    if(tx_config->common.modulation == MOD_OOK) {
+    // Set the PATABLE value
+    if(cc1101->tx_config.common.modulation == MOD_OOK) {
         // OOK uses PATABLE[0] for off power and PATABLE[1] for on power
-        patable[1] = tx_config->tx_power;
+        patable[1] = cc1101->tx_config.tx_power;
     }
     else {
-        patable[0] = tx_config->tx_power;
+        patable[0] = cc1101->tx_config.tx_power;
     }
-
 
     // Write the registers and PATABLE to the device
     cc1101_spi_write_config_registers(cc1101, device_config, sizeof(cc1101_device_config_t));
@@ -322,23 +320,17 @@ void cc1101_config_apply_tx(cc1101_t *cc1101, const cc1101_tx_config_t *tx_confi
 }
 
 /*
-* Applies a RX config to the hardware. Configuration MUST already have been validated
+* Apply a stored RX config to the hardware
 * 
 * Arguments:
 *   cc1101: cc1101 device
-*   rx_config: a RX config struct
 *
 */
-void cc1101_config_apply_rx(cc1101_t *cc1101, const cc1101_rx_config_t *rx_config) {
+void cc1101_config_apply_rx(cc1101_t *cc1101) {
     cc1101_device_config_t device_config;
 
-    // Don't copy the config to the CC1101 struct if the CC1101 struct is the origin
-    if (&cc1101->rx_config != rx_config) {
-        memcpy(&cc1101->rx_config, rx_config, sizeof(cc1101_rx_config_t));
-    }
-
     // Convert the configuration to a set of register values
-    cc1101_config_rx_to_device(device_config, rx_config);
+    cc1101_config_rx_to_registers(device_config, &cc1101->rx_config);
 
     // Write the registers to the device
     cc1101_spi_write_config_registers(cc1101, device_config, sizeof(cc1101_device_config_t));
@@ -387,7 +379,7 @@ unsigned char cc1101_get_mdmcfg2(const cc1101_common_config_t *config, char carr
 *   tx_config: a TX config struct
 *
 */
-void cc1101_config_tx_to_device(unsigned char *config, const cc1101_tx_config_t *tx_config) {
+void cc1101_config_tx_to_registers(unsigned char *config, const cc1101_tx_config_t *tx_config) {
     // Copy the default config
     memcpy(config, &DEFAULT_CONFIG, sizeof(cc1101_device_config_t));
 
@@ -436,7 +428,7 @@ void cc1101_config_tx_to_device(unsigned char *config, const cc1101_tx_config_t 
 *   rx_config: an RX config struct
 *
 */
-void cc1101_config_rx_to_device(unsigned char *config, const cc1101_rx_config_t *rx_config) {
+void cc1101_config_rx_to_registers(unsigned char *config, const cc1101_rx_config_t *rx_config) {
     // Copy the default config
     memcpy(config, &DEFAULT_CONFIG, sizeof(cc1101_device_config_t));
 

@@ -139,11 +139,8 @@ static long chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
                 return -EINVAL;
             }
 
-            // Reset the device
-            cc1101_reset(cc1101);
-
-            // Write the TX config to the device
-            cc1101_config_apply_tx(cc1101, &tx_config);
+            // Store the new TX config in the device struct
+            memcpy(&cc1101->tx_config, &tx_config, sizeof(cc1101_tx_config_t));
 
             return 0;
 
@@ -161,9 +158,6 @@ static long chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
                 return -EINVAL;
             }
 
-            // Reset the device
-            cc1101_reset(cc1101);
-
             // Replace the RX FIFO with a new one based on the provided packet size and the maximum number of queued packets
             kfifo_free(&cc1101->rx_fifo);
             if(kfifo_alloc(&cc1101->rx_fifo, rx_config.packet_length * rx_fifo_size, GFP_KERNEL) != 0) {
@@ -171,8 +165,14 @@ static long chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
                 return -ENOMEM;
             }
 
-            // Write the RX config to the device
-            cc1101_config_apply_rx(cc1101, &rx_config);
+            // Store the new RX config in the device struct
+            memcpy(&cc1101->rx_config, &rx_config, sizeof(cc1101_rx_config_t));
+
+            // Set the device to idle before reconfiguring
+            cc1101_idle(cc1101);
+
+            // Write the configuration to the device
+            cc1101_config_apply_rx(cc1101);
             
             // Enter RX mode on the device
             cc1101_rx(cc1101);
@@ -189,12 +189,12 @@ static long chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
         // Returns the register values for the RX configuration to userspace
         case CC1101_GET_RX_RAW_CONF:
-            cc1101_config_rx_to_device(device_config, &cc1101->rx_config);
+            cc1101_config_rx_to_registers(device_config, &cc1101->rx_config);
             return copy_to_user((unsigned char*) arg, device_config, sizeof(device_config));
 
         // Returns the register values for the TX configuration to userspace
         case CC1101_GET_TX_RAW_CONF:
-            cc1101_config_tx_to_device(device_config, &cc1101->tx_config);
+            cc1101_config_tx_to_registers(device_config, &cc1101->tx_config);
             return copy_to_user((unsigned char*) arg, device_config, sizeof(device_config));
 
         // Reads the current state of the CC1101's registers and returns them to userspace
@@ -270,6 +270,12 @@ static ssize_t chrdev_write(struct file *file, const char __user *buf, size_t le
         ret = -EFAULT;
         goto done;
     }
+
+    // Set the device to idle before configuring
+    cc1101_idle(cc1101);
+
+    // Apply the TX config
+    cc1101_config_apply_tx(cc1101);
 
     // Transmit bytes using the device and return the number of transmitted bytes
     cc1101_tx(cc1101, tx_bytes, len);

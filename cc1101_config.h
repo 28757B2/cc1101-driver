@@ -11,8 +11,8 @@ int cc1101_config_validate_tx(cc1101_t *cc1101, const cc1101_tx_config_t *tx_con
 int cc1101_config_validate_rx(cc1101_t *cc1101, const cc1101_rx_config_t *rx_config);
 
 unsigned char cc1101_get_mdmcfg2(const cc1101_common_config_t *rx_config, char carrier_sense);
-void cc1101_config_apply_tx(cc1101_t *cc1101, const cc1101_tx_config_t *tx_config);
-void cc1101_config_apply_rx(cc1101_t *cc1101, const cc1101_rx_config_t *rx_config);
-void cc1101_config_tx_to_device(unsigned char *config, const cc1101_tx_config_t *tx_config);
-void cc1101_config_rx_to_device(unsigned char *config, const cc1101_rx_config_t *rx_config);
+void cc1101_config_apply_tx(cc1101_t *cc1101);
+void cc1101_config_apply_rx(cc1101_t *cc1101);
+void cc1101_config_tx_to_registers(unsigned char *config, const cc1101_tx_config_t *tx_config);
+void cc1101_config_rx_to_registers(unsigned char *config, const cc1101_rx_config_t *rx_config);
 #endif
