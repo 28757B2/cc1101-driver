@@ -55,6 +55,9 @@ sudo chown -R pi:pi /usr/src/cc1101-1.0.0
 cd /usr/src/cc1101-1.0.0
 git clone https://github.com/28757B2/cc1101-driver.git .
 
+# Only permit root to alter module source
+sudo chown -R root:root /usr/src/cc1101-1.0.0
+
 # Build with DKMS
 sudo dkms add -m cc1101 -v 1.0.0
 sudo dkms build -m cc1101 -v 1.0.0
