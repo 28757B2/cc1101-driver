@@ -81,8 +81,8 @@ reboot
 
 After rebooting, entries should appear in the `dmesg` output depending on where the CC1101 is attached:
 
-    [    6.305355] cc1101 spi0.1: Device not found
-    [    6.317896] cc1101 spi0.0: Ready
+    [  726.808248] cc1101 spi0.1: Device not found (Partnum: 0x00, Version: 0x00)
+    [  726.809093] cc1101 spi0.0: Ready (Partnum: 0x00, Version: 0x14)
 
 ## Setup
 
