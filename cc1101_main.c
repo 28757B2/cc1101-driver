@@ -7,6 +7,7 @@
 #include <linux/spi/spi.h>
 #include <linux/of_gpio.h>
 #include <linux/input.h>
+#include <generated/autoconf.h>
 
 #include "cc1101_internal.h"
 #include "cc1101_chrdev.h"
@@ -20,6 +21,11 @@ module_param(max_packet_size, uint, 0660);
 // Module parameter for the number of received packets to be held in the kernel FIFO waiting to be read
 uint rx_fifo_size = 10;
 module_param(rx_fifo_size, uint, 0660);
+
+#ifndef CONFIG_DYNAMIC_DEBUG
+uint debug = 0;
+module_param(debug, uint, 0660);
+#endif
 
 /*
 *   Function called on module insertion for each CC1101 entry in device tree
@@ -156,12 +162,18 @@ static struct spi_driver cc1101_driver = {
 */
 static int __init cc1101_init(void)
 {
+    #ifndef CONFIG_DYNAMIC_DEBUG
+    if(debug > 1) {
+        return -EINVAL;
+    }
+    #endif
+
     return cc1101_chrdev_setup(&cc1101_driver);
 }
 module_init(cc1101_init);
 
 static void __exit cc1101_exit(void)
-{
+{    
     cc1101_chrdev_teardown(&cc1101_driver);
 }
 module_exit(cc1101_exit);
@@ -169,4 +181,4 @@ module_exit(cc1101_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("");
 MODULE_DESCRIPTION("TI CC1101 Device Driver");
-MODULE_VERSION("0.2");
+MODULE_VERSION("1.2.0");

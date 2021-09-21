@@ -147,4 +147,8 @@ DKMS can be used to ensure the module is re-compiled whenever a new kernel is in
 ### Debugging
 To enable debug messages:
 
+    # Raspberry Pi OS
+    sudo modprobe cc1101 debug=1
+    
+    # Ubuntu
     echo "module cc1101 +p" > /sys/kernel/debug/dynamic_debug/control
