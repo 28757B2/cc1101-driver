@@ -10,7 +10,7 @@
 
 #include "cc1101.h"
 
-#define DRIVER_VERSION 1
+#define DRIVER_VERSION 2
 
 // Configuration Registers - CC1101 Datasheet Table 43
 // Generated in SmartRF Studio with config string #define @RN@ @<<@ 0x@AH@ @<<@ // @Rd@
@@ -130,7 +130,8 @@ typedef struct {
     struct spi_device *spi;
     dev_t devt;
     int irq;
-    struct mutex lock;
+    struct mutex chrdev_lock;
+    struct mutex device_lock;
     cc1101_mode_t mode;
     cc1101_tx_config_t tx_config;
     cc1101_rx_config_t rx_config;

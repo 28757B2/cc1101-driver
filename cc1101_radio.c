@@ -369,7 +369,7 @@ irqreturn_t cc1101_rx_interrupt(int irq, void *handle)
 
             // Unlock mutex and reset packet count
             cc1101->bytes_remaining = 0;
-            mutex_unlock(&cc1101->lock);
+            mutex_unlock(&cc1101->device_lock);
 
             return IRQ_HANDLED;
         }
@@ -378,7 +378,7 @@ irqreturn_t cc1101_rx_interrupt(int irq, void *handle)
         if(cc1101->bytes_remaining == 0){
 
             // Try to lock the device
-            if(mutex_trylock(&cc1101->lock) != 1){
+            if(mutex_trylock(&cc1101->device_lock) != 1){
                 // If this fails, it is because a process has /dev/cc1101.x.x open
                 CC1101_DEBUG(cc1101, "Interrupt Handler Failed To Acquire Lock\n");
 
@@ -413,7 +413,7 @@ irqreturn_t cc1101_rx_interrupt(int irq, void *handle)
             cc1101_spi_write_config_register(cc1101, MDMCFG2, cc1101_get_mdmcfg2(&cc1101->rx_config.common, cc1101->rx_config.carrier_sense));
 
             // Release the device lock
-            mutex_unlock(&cc1101->lock);
+            mutex_unlock(&cc1101->device_lock);
         }
         // Received some bytes, but there are still some remaining in the packet to be received
         else if(rx_bytes < cc1101->bytes_remaining){
@@ -472,7 +472,7 @@ irqreturn_t cc1101_rx_interrupt(int irq, void *handle)
             change_state(cc1101, MODE_RX);
 
             // Release the lock so the device can be reconfigured if necessary
-            mutex_unlock(&cc1101->lock);    
+            mutex_unlock(&cc1101->device_lock);    
         }
     }
     return IRQ_HANDLED;

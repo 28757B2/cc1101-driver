@@ -20,18 +20,18 @@ typedef unsigned char cc1101_patable_t[PATABLE_LEN];
 typedef struct {
     unsigned frequency;
     unsigned char modulation;
-    unsigned char baud_rate_exponent;
     unsigned char baud_rate_mantissa;
-    unsigned char deviation_exponent;
+    unsigned char baud_rate_exponent;
     unsigned char deviation_mantissa;
+    unsigned char deviation_exponent;
     unsigned long sync_word;
 } cc1101_common_config_t;
 
 // Message sent from userspace via IOCTL containing RX mode configuration parameters
 typedef struct {
     cc1101_common_config_t common;
-    unsigned char bandwidth_exponent;
     unsigned char bandwidth_mantissa;
+    unsigned char bandwidth_exponent;
     unsigned char carrier_sense;
     unsigned packet_length;
 } cc1101_rx_config_t;

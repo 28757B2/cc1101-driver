@@ -50,8 +50,9 @@ static int cc1101_spi_probe(struct spi_device *spi)
     // Associate the SPI device to the CC1101
     cc1101->spi = spi;
 
-    // Initialise the device lock
-    mutex_init(&cc1101->lock);
+    // Initialise the device locks
+    mutex_init(&cc1101->device_lock);
+    mutex_init(&cc1101->chrdev_lock);
 
     // Setup the RX timeout timer
     timer_setup(&cc1101->rx_timeout, cc1101_rx_timeout, 0);
@@ -168,4 +169,4 @@ module_exit(cc1101_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("");
 MODULE_DESCRIPTION("TI CC1101 Device Driver");
-MODULE_VERSION("0.1");
+MODULE_VERSION("0.2");

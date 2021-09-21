@@ -73,11 +73,11 @@ static int chrdev_open(struct inode *inode, struct file *file)
     }
 
     // Once found, lock the device and save the pointer to private data for the subsequent functions
-    if(mutex_lock_interruptible(&cc1101->lock) != 0) {
+    if(mutex_lock_interruptible(&cc1101->chrdev_lock) != 0) {
         return -EBUSY;
     };
-    file->private_data = cc1101;
 
+    file->private_data = cc1101;
     return 0;
 }
 
@@ -88,7 +88,7 @@ static int chrdev_open(struct inode *inode, struct file *file)
 static int chrdev_release(struct inode *inode, struct file *file)
 {
     cc1101_t* cc1101 = file->private_data;
-    mutex_unlock(&cc1101->lock);
+    mutex_unlock(&cc1101->chrdev_lock);
     file->private_data = NULL;
     return 0;
 }
@@ -102,6 +102,7 @@ static long chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
     cc1101_t* cc1101 = file->private_data;
     int version = DRIVER_VERSION;
+    int ret = 0;
 
     // Temporary holding variables for new TX and RX configs
     cc1101_device_config_t device_config;
@@ -110,20 +111,27 @@ static long chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
     if(_IOC_TYPE(cmd) != CC1101_BASE){
         CC1101_ERROR(cc1101, "Invalid IOCTL\n");
-        return -EINVAL;
+        return -EIO;
     }
+
+    // Lock the device for reconfiguration
+    if(mutex_lock_interruptible(&cc1101->device_lock) != 0) {
+        return -EBUSY;
+    };
 
     switch(cmd){
 
         // Get the userspace API version
         case CC1101_GET_VERSION:
-            return copy_to_user((unsigned char*) arg, &version, sizeof(version));
+            ret = copy_to_user((unsigned char*) arg, &version, sizeof(version));
+            break;
 
         // Reset the device and driver state
         case CC1101_RESET:
             CC1101_INFO(cc1101, "Reset");
             cc1101_reset(cc1101);
-            return 0;
+            ret = 0;
+            break;
 
         // Set the TX config to use for the next packet written to /dev/cc1101.x.x
         case CC1101_SET_TX_CONF:
@@ -131,18 +139,21 @@ static long chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
             // Copy the config provided in userspace to the kernel
             if(copy_from_user(&tx_config, (unsigned char*) arg, sizeof(tx_config)) != 0){
                 CC1101_ERROR(cc1101, "Error Copying Device TX Config\n");
-                return -EFAULT;
+                ret = -EFAULT;
+                goto done;
             }
 
             // Validate the provided config
             if(!cc1101_config_validate_tx(cc1101, &tx_config)){
-                return -EINVAL;
+                ret = -EINVAL;
+                goto done;
             }
 
             // Store the new TX config in the device struct
             memcpy(&cc1101->tx_config, &tx_config, sizeof(cc1101_tx_config_t));
 
-            return 0;
+            ret = 0;
+            break;
 
         // Set the RX config for the device
         case CC1101_SET_RX_CONF:
@@ -150,19 +161,22 @@ static long chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
             // Copy the config provided in userspace to the kernel
             if(copy_from_user(&rx_config, (unsigned char*) arg, sizeof(rx_config)) != 0){
                 CC1101_ERROR(cc1101, "Error Copying Device RX Config\n");
-                return -EFAULT;
+                ret = -EFAULT;
+                goto done;
             }
 
             // Validate the provided config
             if(!cc1101_config_validate_rx(cc1101, &rx_config)){
-                return -EINVAL;
+                ret = -EINVAL;
+                goto done;
             }
 
             // Replace the RX FIFO with a new one based on the provided packet size and the maximum number of queued packets
             kfifo_free(&cc1101->rx_fifo);
             if(kfifo_alloc(&cc1101->rx_fifo, rx_config.packet_length * rx_fifo_size, GFP_KERNEL) != 0) {
                 CC1101_ERROR(cc1101, "Failed to allocate packet FIFO memory");
-                return -ENOMEM;
+                ret = -ENOMEM;
+                goto done;
             }
 
             // Store the new RX config in the device struct
@@ -177,38 +191,46 @@ static long chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
             // Enter RX mode on the device
             cc1101_rx(cc1101);
 
-            return 0;
-        
+            ret = 0;
+            break;
+
         // Returns the RX config configured in the driver to userspace
         case CC1101_GET_RX_CONF:
-            return copy_to_user((unsigned char*) arg, &cc1101->rx_config, sizeof(cc1101_rx_config_t));
+            ret = copy_to_user((unsigned char*) arg, &cc1101->rx_config, sizeof(cc1101_rx_config_t));
+            break;
 
         // Returns the TX config configured in the driver to userspace
         case CC1101_GET_TX_CONF:
-            return copy_to_user((unsigned char*) arg, &cc1101->tx_config, sizeof(cc1101_tx_config_t));
+            ret = copy_to_user((unsigned char*) arg, &cc1101->tx_config, sizeof(cc1101_tx_config_t));
+            break;
 
         // Returns the register values for the RX configuration to userspace
         case CC1101_GET_RX_RAW_CONF:
             cc1101_config_rx_to_registers(device_config, &cc1101->rx_config);
-            return copy_to_user((unsigned char*) arg, device_config, sizeof(device_config));
+            ret = copy_to_user((unsigned char*) arg, device_config, sizeof(device_config));
+            break;
 
         // Returns the register values for the TX configuration to userspace
         case CC1101_GET_TX_RAW_CONF:
             cc1101_config_tx_to_registers(device_config, &cc1101->tx_config);
-            return copy_to_user((unsigned char*) arg, device_config, sizeof(device_config));
+            ret = copy_to_user((unsigned char*) arg, device_config, sizeof(device_config));
+            break;
 
         // Reads the current state of the CC1101's registers and returns them to userspace
         case CC1101_GET_DEV_RAW_CONF:
             cc1101_spi_read_config_registers(cc1101, device_config, sizeof(device_config));
-            return copy_to_user((unsigned char*) arg, device_config, sizeof(device_config));
+            ret = copy_to_user((unsigned char*) arg, device_config, sizeof(device_config));
+            break;
 
         default:
             CC1101_ERROR(cc1101, "Unknown Command %d, %d, %d\n", cmd, sizeof(cc1101_rx_config_t), sizeof(cc1101_tx_config_t));
-            return -EINVAL;
+            ret = -EIO;
+            break;
     }
 
-   return 0;
-
+done:
+    mutex_unlock(&cc1101->device_lock);
+    return ret;
 }
 
 /*
@@ -218,30 +240,41 @@ static long chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 static ssize_t chrdev_read(struct file *file, char __user *buf, size_t len, loff_t *off)
 {
     cc1101_t* cc1101 = file->private_data;
+    int ret;
     size_t out_bytes;
 
     // Check a RX config has been set and that the out buffer is the correct size
     if (cc1101->rx_config.packet_length == 0 || len != cc1101->rx_config.packet_length) {
-        return -EINVAL;
+        return -EMSGSIZE;
     }
+
+    if(mutex_lock_interruptible(&cc1101->device_lock) != 0) {
+        return -EBUSY;
+    };
 
     // Check there is at least one packet in the RX FIFO
     if (kfifo_len(&cc1101->rx_fifo) < cc1101->rx_config.packet_length) {
-        return -ENOMSG;
+        ret = -ENOMSG;
+        goto done;
     }
 
     // Copy the packet out to userspace
     if (kfifo_to_user(&cc1101->rx_fifo, buf, len, &out_bytes) != 0) {
-        return -EFAULT;
+        ret = -EFAULT;
+        goto done;
     }
 
     // Check the number of bytes copied out matches the expected number
     if (out_bytes == cc1101->rx_config.packet_length) {
-        return out_bytes;
+        ret = out_bytes;
     }
     else {
-        return -EFAULT;
+        ret = -EFAULT;
     }
+
+done:
+    mutex_unlock(&cc1101->device_lock);
+    return ret;
 }
 
 /*
@@ -254,22 +287,31 @@ static ssize_t chrdev_write(struct file *file, const char __user *buf, size_t le
     ssize_t ret;
     unsigned char *tx_bytes;
  
+ 
     // Check the number of bytes to be transmitted are allowed
     if (len > max_packet_size) {
-        return -EINVAL;
+        ret = -EMSGSIZE;
+        goto done;
     }
 
     // Allocate a temporary buffer for the bytes to be transmitted
     tx_bytes = kmalloc(len, GFP_KERNEL);
     if(tx_bytes == NULL) {
-        return -ENOMEM;
+        ret = -ENOMEM;
+        goto done;
     }
 
     // Copy from userspace to temporary buffer in kernel space
     if(copy_from_user(tx_bytes, buf, len) != 0) {
         ret = -EFAULT;
-        goto done;
+        goto err_copy;
     }
+
+    // Lock the device for reconfiguration
+    if(mutex_lock_interruptible(&cc1101->device_lock) != 0) {
+        ret = -EBUSY;
+        goto err_lock;
+    };
 
     // Set the device to idle before configuring
     cc1101_idle(cc1101);
@@ -281,9 +323,12 @@ static ssize_t chrdev_write(struct file *file, const char __user *buf, size_t le
     cc1101_tx(cc1101, tx_bytes, len);
     ret = len;
 
-done:
+    mutex_unlock(&cc1101->device_lock);
+err_lock:
+err_copy:
     kfree(tx_bytes);
-    return len;
+done:
+    return ret;
 }
 
 /*
