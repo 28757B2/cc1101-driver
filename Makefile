@@ -4,5 +4,8 @@ cc1101-objs+= cc1101_main.o cc1101_chrdev.o cc1101_spi.o cc1101_radio.o cc1101_c
 all:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
 
+rxonly:
+	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) ccflags-y="-DRXONLY" modules
+
 clean:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean

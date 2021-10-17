@@ -136,6 +136,7 @@ void cc1101_rx(cc1101_t* cc1101)
     change_state(cc1101, MODE_RX);
 }
 
+# ifndef RXONLY
 /*
 * Function to transmit an arbitrary length packet (> 64 bytes)
 * Arguments:
@@ -300,6 +301,7 @@ void cc1101_tx(cc1101_t* cc1101, const char* buf, size_t len){
         cc1101_rx(cc1101);
     }
 }
+#endif 
 
 /*
 * Function to reset the device and the driver's internal state

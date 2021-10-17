@@ -106,7 +106,9 @@ static long chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
     // Temporary holding variables for new TX and RX configs
     cc1101_device_config_t device_config;
+#ifndef RXONLY
     cc1101_tx_config_t tx_config;
+#endif
     cc1101_rx_config_t rx_config;
 
     if(_IOC_TYPE(cmd) != CC1101_BASE){
@@ -130,28 +132,6 @@ static long chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
         case CC1101_RESET:
             CC1101_INFO(cc1101, "Reset");
             cc1101_reset(cc1101);
-            ret = 0;
-            break;
-
-        // Set the TX config to use for the next packet written to /dev/cc1101.x.x
-        case CC1101_SET_TX_CONF:
-
-            // Copy the config provided in userspace to the kernel
-            if(copy_from_user(&tx_config, (unsigned char*) arg, sizeof(tx_config)) != 0){
-                CC1101_ERROR(cc1101, "Error Copying Device TX Config\n");
-                ret = -EFAULT;
-                goto done;
-            }
-
-            // Validate the provided config
-            if(!cc1101_config_validate_tx(cc1101, &tx_config)){
-                ret = -EINVAL;
-                goto done;
-            }
-
-            // Store the new TX config in the device struct
-            memcpy(&cc1101->tx_config, &tx_config, sizeof(cc1101_tx_config_t));
-
             ret = 0;
             break;
 
@@ -199,21 +179,54 @@ static long chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
             ret = copy_to_user((unsigned char*) arg, &cc1101->rx_config, sizeof(cc1101_rx_config_t));
             break;
 
-        // Returns the TX config configured in the driver to userspace
-        case CC1101_GET_TX_CONF:
-            ret = copy_to_user((unsigned char*) arg, &cc1101->tx_config, sizeof(cc1101_tx_config_t));
-            break;
-
         // Returns the register values for the RX configuration to userspace
         case CC1101_GET_RX_RAW_CONF:
             cc1101_config_rx_to_registers(device_config, &cc1101->rx_config);
             ret = copy_to_user((unsigned char*) arg, device_config, sizeof(device_config));
             break;
 
+        // Set the TX config to use for the next packet written to /dev/cc1101.x.x
+        case CC1101_SET_TX_CONF:
+#ifndef RXONLY
+            // Copy the config provided in userspace to the kernel
+            if(copy_from_user(&tx_config, (unsigned char*) arg, sizeof(tx_config)) != 0){
+                CC1101_ERROR(cc1101, "Error Copying Device TX Config\n");
+                ret = -EFAULT;
+                goto done;
+            }
+
+            // Validate the provided config
+            if(!cc1101_config_validate_tx(cc1101, &tx_config)){
+                ret = -EINVAL;
+                goto done;
+            }
+
+            // Store the new TX config in the device struct
+            memcpy(&cc1101->tx_config, &tx_config, sizeof(cc1101_tx_config_t));
+
+            ret = 0;
+#else
+            ret = -EPERM;
+#endif 
+            break;
+
+        // Returns the TX config configured in the driver to userspace
+        case CC1101_GET_TX_CONF:
+#ifndef RXONLY
+            ret = copy_to_user((unsigned char*) arg, &cc1101->tx_config, sizeof(cc1101_tx_config_t));
+#else
+            ret = -EPERM;
+#endif
+            break;
+
         // Returns the register values for the TX configuration to userspace
         case CC1101_GET_TX_RAW_CONF:
+#ifndef RXONLY
             cc1101_config_tx_to_registers(device_config, &cc1101->tx_config);
             ret = copy_to_user((unsigned char*) arg, device_config, sizeof(device_config));
+#else
+            ret = -EPERM;
+#endif
             break;
 
         // Reads the current state of the CC1101's registers and returns them to userspace
@@ -283,6 +296,7 @@ done:
 */
 static ssize_t chrdev_write(struct file *file, const char __user *buf, size_t len, loff_t *off)
 {
+#ifndef RXONLY
     cc1101_t* cc1101 = file->private_data;
     ssize_t ret;
     unsigned char *tx_bytes;
@@ -329,6 +343,9 @@ err_copy:
     kfree(tx_bytes);
 done:
     return ret;
+#else
+    return -EPERM;
+#endif 
 }
 
 /*

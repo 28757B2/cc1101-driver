@@ -27,6 +27,12 @@ uint debug = 0;
 module_param(debug, uint, 0660);
 #endif
 
+#ifdef RXONLY
+    #define EXTRA_STATUS "[RX Only] -"
+#else
+    #define EXTRA_STATUS "-"
+#endif
+
 /*
 *   Function called on module insertion for each CC1101 entry in device tree
 */
@@ -103,7 +109,7 @@ static int cc1101_spi_probe(struct spi_device *spi)
     // Associate the device struct to the parent SPI device
     spi_set_drvdata(spi, cc1101);
 
-    CC1101_INFO(cc1101, "Ready (Partnum: 0x%02x, Version: 0x%02x)", partnum.data, version.data);
+    CC1101_INFO(cc1101, "Ready " EXTRA_STATUS " (Partnum: 0x%02x, Version: 0x%02x)", partnum.data, version.data);
 
     return 0;
 }
@@ -181,4 +187,4 @@ module_exit(cc1101_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("");
 MODULE_DESCRIPTION("TI CC1101 Device Driver");
-MODULE_VERSION("1.2.0");
+MODULE_VERSION("1.2.1");

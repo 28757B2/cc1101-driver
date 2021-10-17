@@ -164,7 +164,7 @@ int validate_baud_rate(unsigned short baud_rate, unsigned char modulation) {
 * 
 * Arguments:
 *   cc1101: cc1101 device (only used for error printing)
-*   tx_config: a TX config struct
+*   config: a Common config struct
 *
 * Returns:
 * 1  - Valid Config
@@ -223,6 +223,7 @@ int cc1101_config_validate_common(cc1101_t *cc1101, const cc1101_common_config_t
     return 1;
 }
 
+#ifndef RXONLY
 /*
 * Validates a TX config struct
 * 
@@ -245,6 +246,84 @@ int cc1101_config_validate_tx(cc1101_t *cc1101, const cc1101_tx_config_t *tx_con
 
     return 1;
 }
+
+/*
+* Converts a TX config to a set of CC1101 configuration registers that can be written to the device
+* 
+* Arguments:
+*   config: pointer to a byte array which will contain the configuration register values 
+*   tx_config: a TX config struct
+*
+*/
+void cc1101_config_tx_to_registers(unsigned char *config, const cc1101_tx_config_t *tx_config) {
+    // Copy the default config
+    memcpy(config, &DEFAULT_CONFIG, sizeof(cc1101_device_config_t));
+
+    // Standard Configuration
+    config[IOCFG0] = 0x2E;    // Disable GDO0 clock output
+    config[PKTCTRL1] = 0x00;  // Disable Preamble Quality Threshold, CRC Autoflush, Status, Address Check
+    config[PKTCTRL0] = 0x00;  // Disable Whitening, CRC. Set fixed packet length mode
+    config[MDMCFG1] = 0x23;   // 2 Preamble bytes. FEC Disabled. Default channel spacing (199.951172 kHZ)
+    config[MCSM0] = 0x14;     // Autocal when going from IDLE to RX or TX. PO_TIMEOUT 2.3-2.4us. Disable radio pin control, XOSC_FORCE
+    config[TEST0] = 0x09;     // Disable VCO Selection calibration
+    config[FSCAL3] = 0xEA;    // Smart RF Studio value
+    config[FSCAL2] = 0x2A;    // Smart RF Studio value
+    config[FSCAL1] = 0x00;    // Smart RF Studio value
+    config[FSCAL0] = 0x1F;    // Smart RF Studio value
+
+    // User Configuration
+
+    // Shift frequency multiplier across registers
+    config[FREQ2] = tx_config->common.frequency >> 16;
+    config[FREQ1] = tx_config->common.frequency >> 8;
+    config[FREQ0] = tx_config->common.frequency & 0x00FF;
+
+    // Set baud rate exponent. RX bandwidth exponent and mantissa set to 0 (not used in TX)
+    config[MDMCFG4] = tx_config->common.baud_rate_exponent;
+    config[MDMCFG3] = tx_config->common.baud_rate_mantissa;
+    config[MDMCFG2] = cc1101_get_mdmcfg2(&tx_config->common, 0);  
+
+    config[SYNC1] = (tx_config->common.sync_word & 0x0000FF00) >> 8;
+    config[SYNC0] =  tx_config->common.sync_word & 0x000000FF;
+
+    config[DEVIATN] = tx_config->common.deviation_exponent << 4 | tx_config->common.deviation_mantissa;
+
+    if(tx_config->common.modulation == MOD_OOK) {
+        config[FREND0] = 0x11;    // PATABLE position 1 is used for OOK on, position 0 for off (default 0)
+    }
+    else {
+        config[FREND0] = 0x10;    // PATABLE position 0 for all other modulations (i.e disable power ramping)
+    }
+}
+
+/*
+* Apply a stored TX config to the hardware
+* 
+* Arguments:
+*   cc1101: cc1101 device
+*
+*/
+void cc1101_config_apply_tx(cc1101_t *cc1101) {
+    cc1101_device_config_t device_config;
+    cc1101_patable_t patable = {0};
+
+    // Convert the configuration to a set of register values
+    cc1101_config_tx_to_registers(device_config, &cc1101->tx_config);
+
+    // Set the PATABLE value
+    if(cc1101->tx_config.common.modulation == MOD_OOK) {
+        // OOK uses PATABLE[0] for off power and PATABLE[1] for on power
+        patable[1] = cc1101->tx_config.tx_power;
+    }
+    else {
+        patable[0] = cc1101->tx_config.tx_power;
+    }
+
+    // Write the registers and PATABLE to the device
+    cc1101_spi_write_config_registers(cc1101, device_config, sizeof(cc1101_device_config_t));
+    cc1101_spi_write_patable(cc1101, patable, sizeof(patable));
+}
+#endif 
 
 /*
 * Validates an RX config struct
@@ -292,31 +371,45 @@ int cc1101_config_validate_rx(cc1101_t *cc1101, const cc1101_rx_config_t *rx_con
 }
 
 /*
-* Apply a stored TX config to the hardware
+* Converts an RX config to a set of CC1101 configuration registers that can be written to the device
 * 
 * Arguments:
-*   cc1101: cc1101 device
+*   config: pointer to a byte array which will contain the configuration register values 
+*   rx_config: an RX config struct
 *
 */
-void cc1101_config_apply_tx(cc1101_t *cc1101) {
-    cc1101_device_config_t device_config;
-    cc1101_patable_t patable = {0};
+void cc1101_config_rx_to_registers(unsigned char *config, const cc1101_rx_config_t *rx_config) {
+    // Copy the default config
+    memcpy(config, &DEFAULT_CONFIG, sizeof(cc1101_device_config_t));
 
-    // Convert the configuration to a set of register values
-    cc1101_config_tx_to_registers(device_config, &cc1101->tx_config);
+    // Standard Configuration
+    config[IOCFG2] = 0x00;     // Raise GDO2 on RX FIFO threshold
+    config[IOCFG0] = 0x2E;     // Disable GDO0 clock output
+    config[PKTCTRL1] = 0x00;   // Disable Preamble Quality Threshold, CRC Autoflush, Status, Address Check
+    config[PKTCTRL0] = 0x02;   // Disable Whitening, CRC. Set infinite packet length mode
+    config[MDMCFG1] = 0x23;    // 2 Preamble bytes. FEC Disabled. Default channel spacing (199.951172 kHZ)
+    config[MCSM0] = 0x14;      // Autocal when going from IDLE to RX or TX. PO_TIMEOUT 2.3-2.4us. Disable radio pin control, XOSC_FORCE
+    config[TEST0] = 0x09;      // Disable VCO Selection calibration
+    config[FSCAL3] = 0xEA;    // Smart RF Studio value
+    config[FSCAL2] = 0x2A;    // Smart RF Studio value
+    config[FSCAL1] = 0x00;    // Smart RF Studio value
+    config[FSCAL0] = 0x1F;    // Smart RF Studio value
 
-    // Set the PATABLE value
-    if(cc1101->tx_config.common.modulation == MOD_OOK) {
-        // OOK uses PATABLE[0] for off power and PATABLE[1] for on power
-        patable[1] = cc1101->tx_config.tx_power;
-    }
-    else {
-        patable[0] = cc1101->tx_config.tx_power;
-    }
+    // User Configuration
+    config[FREQ2] = rx_config->common.frequency >> 16;
+    config[FREQ1] = rx_config->common.frequency >> 8;
+    config[FREQ0] = rx_config->common.frequency & 0x00FF;
 
-    // Write the registers and PATABLE to the device
-    cc1101_spi_write_config_registers(cc1101, device_config, sizeof(cc1101_device_config_t));
-    cc1101_spi_write_patable(cc1101, patable, sizeof(patable));
+    config[MDMCFG4] = rx_config->bandwidth_exponent << 6 | rx_config->bandwidth_mantissa << 4 | rx_config->common.baud_rate_exponent;
+    config[MDMCFG3] = rx_config->common.baud_rate_mantissa;
+    config[MDMCFG2] = cc1101_get_mdmcfg2(&rx_config->common, rx_config->carrier_sense);  
+
+    config[SYNC1] = (rx_config->common.sync_word & 0x0000FF00) >> 8;
+    config[SYNC0] =  rx_config->common.sync_word & 0x000000FF;
+    
+    config[DEVIATN] = rx_config->common.deviation_exponent << 4 | rx_config->common.deviation_mantissa;
+    config[AGCCTRL2] = CARRIER_SENSE[rx_config->carrier_sense - 17] >> 4; // Maximum MAX_DVGA_GAIN and MAX_LNA_GAIN. MAGN_TARGET from config
+    config[AGCCTRL1] = 0x40 | (CARRIER_SENSE[rx_config->carrier_sense - 17] & 0x0F); // Default AGC_LNA_PRIORITY. CS relative threshold disabled. Absolute threshold from config.
 }
 
 /*
@@ -371,93 +464,5 @@ unsigned char cc1101_get_mdmcfg2(const cc1101_common_config_t *config, char carr
     return value; 
 }
 
-/*
-* Converts a TX config to a set of CC1101 configuration registers that can be written to the device
-* 
-* Arguments:
-*   config: pointer to a byte array which will contain the configuration register values 
-*   tx_config: a TX config struct
-*
-*/
-void cc1101_config_tx_to_registers(unsigned char *config, const cc1101_tx_config_t *tx_config) {
-    // Copy the default config
-    memcpy(config, &DEFAULT_CONFIG, sizeof(cc1101_device_config_t));
 
-    // Standard Configuration
-    config[IOCFG0] = 0x2E;    // Disable GDO0 clock output
-    config[PKTCTRL1] = 0x00;  // Disable Preamble Quality Threshold, CRC Autoflush, Status, Address Check
-    config[PKTCTRL0] = 0x00;  // Disable Whitening, CRC. Set fixed packet length mode
-    config[MDMCFG1] = 0x23;   // 2 Preamble bytes. FEC Disabled. Default channel spacing (199.951172 kHZ)
-    config[MCSM0] = 0x14;     // Autocal when going from IDLE to RX or TX. PO_TIMEOUT 2.3-2.4us. Disable radio pin control, XOSC_FORCE
-    config[TEST0] = 0x09;     // Disable VCO Selection calibration
-    config[FSCAL3] = 0xEA;    // Smart RF Studio value
-    config[FSCAL2] = 0x2A;    // Smart RF Studio value
-    config[FSCAL1] = 0x00;    // Smart RF Studio value
-    config[FSCAL0] = 0x1F;    // Smart RF Studio value
 
-    // User Configuration
-
-    // Shift frequency multiplier across registers
-    config[FREQ2] = tx_config->common.frequency >> 16;
-    config[FREQ1] = tx_config->common.frequency >> 8;
-    config[FREQ0] = tx_config->common.frequency & 0x00FF;
-
-    // Set baud rate exponent. RX bandwidth exponent and mantissa set to 0 (not used in TX)
-    config[MDMCFG4] = tx_config->common.baud_rate_exponent;
-    config[MDMCFG3] = tx_config->common.baud_rate_mantissa;
-    config[MDMCFG2] = cc1101_get_mdmcfg2(&tx_config->common, 0);  
-
-    config[SYNC1] = (tx_config->common.sync_word & 0x0000FF00) >> 8;
-    config[SYNC0] =  tx_config->common.sync_word & 0x000000FF;
-
-    config[DEVIATN] = tx_config->common.deviation_exponent << 4 | tx_config->common.deviation_mantissa;
-
-    if(tx_config->common.modulation == MOD_OOK) {
-        config[FREND0] = 0x11;    // PATABLE position 1 is used for OOK on, position 0 for off (default 0)
-    }
-    else {
-        config[FREND0] = 0x10;    // PATABLE position 0 for all other modulations (i.e disable power ramping)
-    }
-}
-
-/*
-* Converts an RX config to a set of CC1101 configuration registers that can be written to the device
-* 
-* Arguments:
-*   config: pointer to a byte array which will contain the configuration register values 
-*   rx_config: an RX config struct
-*
-*/
-void cc1101_config_rx_to_registers(unsigned char *config, const cc1101_rx_config_t *rx_config) {
-    // Copy the default config
-    memcpy(config, &DEFAULT_CONFIG, sizeof(cc1101_device_config_t));
-
-    // Standard Configuration
-    config[IOCFG2] = 0x00;     // Raise GDO2 on RX FIFO threshold
-    config[IOCFG0] = 0x2E;     // Disable GDO0 clock output
-    config[PKTCTRL1] = 0x00;   // Disable Preamble Quality Threshold, CRC Autoflush, Status, Address Check
-    config[PKTCTRL0] = 0x02;   // Disable Whitening, CRC. Set infinite packet length mode
-    config[MDMCFG1] = 0x23;    // 2 Preamble bytes. FEC Disabled. Default channel spacing (199.951172 kHZ)
-    config[MCSM0] = 0x14;      // Autocal when going from IDLE to RX or TX. PO_TIMEOUT 2.3-2.4us. Disable radio pin control, XOSC_FORCE
-    config[TEST0] = 0x09;      // Disable VCO Selection calibration
-    config[FSCAL3] = 0xEA;    // Smart RF Studio value
-    config[FSCAL2] = 0x2A;    // Smart RF Studio value
-    config[FSCAL1] = 0x00;    // Smart RF Studio value
-    config[FSCAL0] = 0x1F;    // Smart RF Studio value
-
-    // User Configuration
-    config[FREQ2] = rx_config->common.frequency >> 16;
-    config[FREQ1] = rx_config->common.frequency >> 8;
-    config[FREQ0] = rx_config->common.frequency & 0x00FF;
-
-    config[MDMCFG4] = rx_config->bandwidth_exponent << 6 | rx_config->bandwidth_mantissa << 4 | rx_config->common.baud_rate_exponent;
-    config[MDMCFG3] = rx_config->common.baud_rate_mantissa;
-    config[MDMCFG2] = cc1101_get_mdmcfg2(&rx_config->common, rx_config->carrier_sense);  
-
-    config[SYNC1] = (rx_config->common.sync_word & 0x0000FF00) >> 8;
-    config[SYNC0] =  rx_config->common.sync_word & 0x000000FF;
-    
-    config[DEVIATN] = rx_config->common.deviation_exponent << 4 | rx_config->common.deviation_mantissa;
-    config[AGCCTRL2] = CARRIER_SENSE[rx_config->carrier_sense - 17] >> 4; // Maximum MAX_DVGA_GAIN and MAX_LNA_GAIN. MAGN_TARGET from config
-    config[AGCCTRL1] = 0x40 | (CARRIER_SENSE[rx_config->carrier_sense - 17] & 0x0F); // Default AGC_LNA_PRIORITY. CS relative threshold disabled. Absolute threshold from config.
-}
