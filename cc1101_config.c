@@ -60,7 +60,7 @@ unsigned char DEFAULT_CONFIG[] = {
 };
 
 // Lookup table to convert from dBm values to Carrier Sense MAGN_TARGET/CARRIER_SENSE_ABS_THR
-unsigned char CARRIER_SENSE[] = {
+unsigned char ABSOLUTE_CARRIER_SENSE[] = {
     0x09, //17
     0x0A, //18
     0x0B, //19
@@ -350,7 +350,7 @@ int cc1101_config_validate_rx(cc1101_t *cc1101, const cc1101_rx_config_t *rx_con
     }
 
     // Check carrier sense is valid
-    if(rx_config->carrier_sense != 0 && (rx_config->carrier_sense < 17 || rx_config->carrier_sense > 49)) {
+    if(rx_config->carrier_sense != 0 && rx_config->carrier_sense != 6 && rx_config->carrier_sense != 10 && rx_config->carrier_sense != 14 && (rx_config->carrier_sense < 17 || rx_config->carrier_sense > 49)){
         CC1101_ERROR(cc1101, "Invalid Carrier Sense Threshold %d dBm\n", rx_config->carrier_sense);
         return 0;
     }
@@ -408,8 +408,23 @@ void cc1101_config_rx_to_registers(unsigned char *config, const cc1101_rx_config
     config[SYNC0] =  rx_config->common.sync_word & 0x000000FF;
     
     config[DEVIATN] = rx_config->common.deviation_exponent << 4 | rx_config->common.deviation_mantissa;
-    config[AGCCTRL2] = CARRIER_SENSE[rx_config->carrier_sense - 17] >> 4; // Maximum MAX_DVGA_GAIN and MAX_LNA_GAIN. MAGN_TARGET from config
-    config[AGCCTRL1] = 0x40 | (CARRIER_SENSE[rx_config->carrier_sense - 17] & 0x0F); // Default AGC_LNA_PRIORITY. CS relative threshold disabled. Absolute threshold from config.
+
+    switch(rx_config->carrier_sense) {
+        case 6:
+            config[AGCCTRL1] = 0x50; // Default AGC_LNA_PRIORITY. CARRIER_SENSE_REL_THR 6dB increase in RSSI
+            break;
+        case 10:
+            config[AGCCTRL1] = 0x60; // Default AGC_LNA_PRIORITY. CARRIER_SENSE_REL_THR 10dB increase in RSSI
+            break;
+        case 14:
+            config[AGCCTRL1] = 0x70; // Default AGC_LNA_PRIORITY. CARRIER_SENSE_REL_THR 14dB increase in RSSI
+            break;
+        default:
+            config[AGCCTRL2] = ABSOLUTE_CARRIER_SENSE[rx_config->carrier_sense - 17] >> 4; // Maximum MAX_DVGA_GAIN and MAX_LNA_GAIN. MAGN_TARGET from config
+            config[AGCCTRL1] = 0x40 | (ABSOLUTE_CARRIER_SENSE[rx_config->carrier_sense - 17] & 0x07); // Default AGC_LNA_PRIORITY. CS relative threshold disabled. Absolute threshold from config.        
+            break;
+    }
+
 }
 
 /*
