@@ -61,14 +61,14 @@ unsigned char DEFAULT_CONFIG[] = {
 
 // Lookup table to convert from dBm values to Carrier Sense MAGN_TARGET/CARRIER_SENSE_ABS_THR
 unsigned char CARRIER_SENSE[] = {
-    0x08, //17
-    0x09, //18
-    0x0A, //19
-    0x0B, //20
-    0x0C, //21
-    0x0D, //22
-    0x0E, //23
-    0x0F, //24
+    0x09, //17
+    0x0A, //18
+    0x0B, //19
+    0x0C, //20
+    0x0D, //21
+    0x0E, //22
+    0x0F, //23
+    0x00, //24
     0x01, //25
     0x02, //26
     0x10, //27
