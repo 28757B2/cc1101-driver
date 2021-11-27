@@ -31,6 +31,8 @@
 #define CC1101_GET_RX_RAW_CONF _IOR(CC1101_BASE, 7, cc1101_device_config_t)
 // Read configuration registers from hardware
 #define CC1101_GET_DEV_RAW_CONF _IOR(CC1101_BASE, 8, cc1101_device_config_t)
+// Get the current RSSI
+#define CC1101_GET_RSSI _IOR(CC1101_BASE, 9, unsigned char)
 
 #define SPI_MAJOR_NUMBER 153
 #define N_SPI_MINOR_NUMBERS 12
@@ -101,6 +103,7 @@ static int chrdev_release(struct inode *inode, struct file *file)
 static long chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
     cc1101_t* cc1101 = file->private_data;
+    spi_transaction_t rssi;
     int version = DRIVER_VERSION;
     int ret = 0;
 
@@ -233,6 +236,11 @@ static long chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
         case CC1101_GET_DEV_RAW_CONF:
             cc1101_spi_read_config_registers(cc1101, device_config, sizeof(device_config));
             ret = copy_to_user((unsigned char*) arg, device_config, sizeof(device_config));
+            break;
+
+        case CC1101_GET_RSSI:
+            rssi = cc1101_spi_read_status_register_once(cc1101, RSSI);
+            ret = copy_to_user((unsigned char*) arg, &rssi.data, sizeof(rssi.data));
             break;
 
         default:

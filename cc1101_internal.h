@@ -10,7 +10,7 @@
 
 #include "cc1101.h"
 
-#define DRIVER_VERSION 2
+#define DRIVER_VERSION 3
 
 // Configuration Registers - CC1101 Datasheet Table 43
 // Generated in SmartRF Studio with config string #define @RN@ @<<@ 0x@AH@ @<<@ // @Rd@

@@ -279,7 +279,7 @@ unsigned char cc1101_spi_send_command(cc1101_t* cc1101, unsigned char command) {
 * Returns:
 *   Transaction struct containing register contents and device status
 */
-static spi_transaction_t cc1101_spi_read_status_register_int(cc1101_t* cc1101, unsigned char reg) {
+spi_transaction_t cc1101_spi_read_status_register_once(cc1101_t* cc1101, unsigned char reg) {
     struct spi_transfer t = {0};
     struct spi_message m;
     spi_transaction_t transaction;
@@ -319,10 +319,10 @@ spi_transaction_t cc1101_spi_read_status_register(cc1101_t* cc1101, unsigned cha
     spi_transaction_t result, result_check;
 
     // Read status register
-    result = cc1101_spi_read_status_register_int(cc1101, reg);
+    result = cc1101_spi_read_status_register_once(cc1101, reg);
     while (1) {
         // Read again
-        result_check = cc1101_spi_read_status_register_int(cc1101, reg);
+        result_check = cc1101_spi_read_status_register_once(cc1101, reg);
 
         // If the values match, the value was valid
         if (result.data == result_check.data) {

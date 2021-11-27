@@ -25,6 +25,7 @@ unsigned char cc1101_spi_write_config_registers(cc1101_t* cc1101, const unsigned
 unsigned char cc1101_spi_write_patable(cc1101_t* cc1101, const unsigned char* patable, unsigned char len);
 unsigned char cc1101_spi_write_txfifo(cc1101_t* cc1101, const unsigned char* tx_bytes, unsigned char len);
 
+spi_transaction_t cc1101_spi_read_status_register_once(cc1101_t* cc1101, unsigned char reg);
 spi_transaction_t cc1101_spi_read_status_register(cc1101_t* cc1101, unsigned char reg);
 unsigned char cc1101_spi_send_command(cc1101_t* cc1101, unsigned char command);
 

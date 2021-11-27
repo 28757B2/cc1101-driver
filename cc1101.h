@@ -32,7 +32,11 @@ typedef struct {
     cc1101_common_config_t common;
     unsigned char bandwidth_mantissa;
     unsigned char bandwidth_exponent;
-    unsigned char carrier_sense;
+    unsigned char max_lna_gain;
+    unsigned char max_dvga_gain;
+    unsigned char magn_target;
+    unsigned char absolute_carrier_sense;
+    signed char carrier_sense;
     unsigned packet_length;
 } cc1101_rx_config_t;
 

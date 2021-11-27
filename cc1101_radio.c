@@ -450,7 +450,7 @@ irqreturn_t cc1101_rx_interrupt(int irq, void *handle)
 
             // Remove oldest packet from the received packet buffer if there is less than is required to hold the newly received packet
             if(fifo_available < cc1101->rx_config.packet_length){
-                CC1101_INFO(cc1101, "RX FIFO Full - Removing Packet");
+                CC1101_DEBUG(cc1101, "RX FIFO Full - Removing Packet");
                 for(i = 0; i < cc1101->rx_config.packet_length; i++){
                     kfifo_skip(&cc1101->rx_fifo);
                 }

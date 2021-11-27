@@ -12,7 +12,7 @@ extern uint max_packet_size;
 unsigned char DEFAULT_CONFIG[] = {
     0x29,  // IOCFG2        GDO2 Output Pin Configuration
     0x2E,  // IOCFG1        GDO1 Output Pin Configuration
-    0x3F,  // IOCFG0        GDO0 Output Pin Configuration
+    0x1E,  // IOCFG0        GDO0 Output Pin Configuration
     0x47,  // FIFOTHR       RX FIFO and TX FIFO Thresholds
     0xD3,  // SYNC1         Sync Word, High Byte
     0x91,  // SYNC0         Sync Word, Low Byte
@@ -57,43 +57,6 @@ unsigned char DEFAULT_CONFIG[] = {
     0x81,  // TEST2         Various Test Settings
     0x35,  // TEST1         Various Test Settings
     0x0B,  // TEST0         Various Test Settings
-};
-
-// Lookup table to convert from dBm values to Carrier Sense MAGN_TARGET/CARRIER_SENSE_ABS_THR
-unsigned char ABSOLUTE_CARRIER_SENSE[] = {
-    0x09, //17
-    0x0A, //18
-    0x0B, //19
-    0x0C, //20
-    0x0D, //21
-    0x0E, //22
-    0x0F, //23
-    0x00, //24
-    0x01, //25
-    0x02, //26
-    0x10, //27
-    0x11, //28
-    0x12, //29
-    0x20, //30
-    0x21, //31
-    0x22, //32
-    0x30, //33
-    0x31, //34
-    0x32, //35
-    0x40, //36
-    0x41, //37
-    0x50, //38
-    0x51, //39
-    0x60, //40
-    0x61, //41
-    0x70, //42
-    0x71, //43
-    0x72, //44
-    0x73, //45
-    0x74, //46
-    0x75, //47
-    0x76, //48
-    0x77, //49
 };
 
 /* 
@@ -343,16 +306,65 @@ int cc1101_config_validate_rx(cc1101_t *cc1101, const cc1101_rx_config_t *rx_con
         return 0;
     }
 
-    // No carrier sense or sync word would be constant RX
-    if(rx_config->carrier_sense == 0 && rx_config->common.sync_word == 0) { 
-        CC1101_ERROR(cc1101, "Invalid Carrier Sense/Sync Word Combination\n");
-        return 0;
+    switch(rx_config->max_lna_gain){
+        case 0:
+        case 3:
+        case 6:
+        case 7:
+        case 9:
+        case 12:
+        case 15:
+        case 17:
+            break;
+        default:
+            CC1101_ERROR(cc1101, "Invalid Max LNA Gain %d\n dB", rx_config->max_lna_gain);
+            return 0;
     }
 
-    // Check carrier sense is valid
-    if(rx_config->carrier_sense != 0 && rx_config->carrier_sense != 6 && rx_config->carrier_sense != 10 && rx_config->carrier_sense != 14 && (rx_config->carrier_sense < 17 || rx_config->carrier_sense > 49)){
-        CC1101_ERROR(cc1101, "Invalid Carrier Sense Threshold %d dBm\n", rx_config->carrier_sense);
-        return 0;
+    switch(rx_config->max_dvga_gain){
+        case 0:
+        case 6:
+        case 12:
+        case 18:
+            break;
+        default:
+            CC1101_ERROR(cc1101, "Invalid Max DVGA Gain %d dB\n", rx_config->max_dvga_gain);
+            return 0;
+    }
+
+    switch(rx_config->magn_target){
+        case 24:
+        case 27:
+        case 30:
+        case 33:
+        case 36:
+        case 38:
+        case 40:
+        case 42:
+            break;
+        default:
+            CC1101_ERROR(cc1101, "Invalid Channel Filter Target Amplitude %d dB\n", rx_config->magn_target);
+            return 0;
+    }
+
+    if(rx_config->absolute_carrier_sense){
+        // Absolute carrier sense threshold must be between -7 dB and 7 dB
+        if(rx_config->carrier_sense < -7 || rx_config->carrier_sense > 7){
+            CC1101_ERROR(cc1101, "Invalid Absolute Carrier Sense Threshold %d\n dB", rx_config->carrier_sense);
+            return 0;
+        }
+    }
+    else {
+        // Relative carrier sense threshold must be either 6, 10 or 14 dB
+        switch(rx_config->carrier_sense) {
+            case 6:
+            case 10:
+            case 14:
+                break;
+            default:
+                CC1101_ERROR(cc1101, "Invalid Relative Carrier Sense Threshold %d\n dB", rx_config->carrier_sense);
+                return 0;
+        }
     }
 
     // Validate the packet length value provided from userspace
@@ -409,22 +421,139 @@ void cc1101_config_rx_to_registers(unsigned char *config, const cc1101_rx_config
     
     config[DEVIATN] = rx_config->common.deviation_exponent << 4 | rx_config->common.deviation_mantissa;
 
-    switch(rx_config->carrier_sense) {
-        case 6:
-            config[AGCCTRL1] = 0x50; // Default AGC_LNA_PRIORITY. CARRIER_SENSE_REL_THR 6dB increase in RSSI
+    // Set the MAGN_TARGET from the config
+    switch(rx_config->magn_target){
+        case 27:
+            config[AGCCTRL2] = 1;
             break;
-        case 10:
-            config[AGCCTRL1] = 0x60; // Default AGC_LNA_PRIORITY. CARRIER_SENSE_REL_THR 10dB increase in RSSI
+        case 30:
+            config[AGCCTRL2] = 2;
             break;
-        case 14:
-            config[AGCCTRL1] = 0x70; // Default AGC_LNA_PRIORITY. CARRIER_SENSE_REL_THR 14dB increase in RSSI
+        case 33:
+            config[AGCCTRL2] = 3;
+            break;
+        case 36:
+            config[AGCCTRL2] = 4;
+            break;
+        case 38:
+            config[AGCCTRL2] = 5;
+            break;
+        case 40:
+            config[AGCCTRL2] = 6;
+            break;
+        case 42:
+            config[AGCCTRL2] = 7;
             break;
         default:
-            config[AGCCTRL2] = ABSOLUTE_CARRIER_SENSE[rx_config->carrier_sense - 17] >> 4; // Maximum MAX_DVGA_GAIN and MAX_LNA_GAIN. MAGN_TARGET from config
-            config[AGCCTRL1] = 0x40 | (ABSOLUTE_CARRIER_SENSE[rx_config->carrier_sense - 17] & 0x07); // Default AGC_LNA_PRIORITY. CS relative threshold disabled. Absolute threshold from config.        
+            config[AGCCTRL2] = 0;
+    }
+
+    // Set the MAX_DVGA_GAIN from the config
+    switch(rx_config->max_dvga_gain){
+        case 6:
+            config[AGCCTRL2] |= (1 << 6);
+            break;
+        case 12:
+            config[AGCCTRL2] |= (2 << 6);
+            break;
+        case 18:
+            config[AGCCTRL2] |= (3 << 6);
+            break;
+        default:
             break;
     }
 
+    // Set the MAX_LNA_GAIN from the config
+    switch(rx_config->max_lna_gain){
+        case 3:
+            config[AGCCTRL2] |= (1 << 3);
+            break;
+        case 6:
+            config[AGCCTRL2] |= (2 << 3);
+            break;
+        case 7:
+            config[AGCCTRL2] |= (3 << 3);
+            break;
+        case 9:
+            config[AGCCTRL2] |= (4 << 3);
+            break;
+        case 12:
+            config[AGCCTRL2] |= (5 << 3);
+            break;
+        case 15:
+            config[AGCCTRL2] |= (6 << 3);
+            break;
+        case 17:
+            config[AGCCTRL2] |= (7 << 3);
+            break;
+        default:
+            break;
+    }
+
+    // Set the CARRIER_SENSE_REL_THR and CARRIER_SENSE_ABS_THR based on the config value
+    // Set AGC_LNA_PRIORITY to the default value
+    if(rx_config->absolute_carrier_sense){
+        switch(rx_config->carrier_sense) {
+            case -7:
+                config[AGCCTRL1] = 0x49;
+                break;
+            case -6:
+                config[AGCCTRL1] = 0x4A;
+                break;
+            case -5:
+                config[AGCCTRL1] = 0x4B;
+                break;
+            case -4:
+                config[AGCCTRL1] = 0x4C;
+                break;
+            case -3:
+                config[AGCCTRL1] = 0x4D;
+                break;
+            case -2:
+                config[AGCCTRL1] = 0x4E;
+                break;
+            case -1:
+                config[AGCCTRL1] = 0x4F;
+                break;
+            case 1:
+                config[AGCCTRL1] = 0x41;
+                break;
+            case 2:
+                config[AGCCTRL1] = 0x42;
+                break;
+            case 3:
+                config[AGCCTRL1] = 0x43;
+                break;
+            case 4:
+                config[AGCCTRL1] = 0x44;
+                break;
+            case 5:
+                config[AGCCTRL1] = 0x45;
+                break;
+            case 6:
+                config[AGCCTRL1] = 0x46;
+                break;
+            case 7:
+                config[AGCCTRL1] = 0x47;
+                break;
+            default:
+                config[AGCCTRL1] = 0x40;
+                break;
+        }
+    }
+    else {
+        switch(rx_config->carrier_sense) {
+            case 6:
+                config[AGCCTRL1] = 0x58; // Default AGC_LNA_PRIORITY. CARRIER_SENSE_REL_THR 6dB increase in RSSI. CS absolute threshold disabled
+                break;
+            case 10:
+                config[AGCCTRL1] = 0x68; // Default AGC_LNA_PRIORITY. CARRIER_SENSE_REL_THR 10dB increase in RSSI. CS absolute threshold disabled
+                break;
+            default:
+                config[AGCCTRL1] = 0x78; // Default AGC_LNA_PRIORITY. CARRIER_SENSE_REL_THR 14dB increase in RSSI. CS absolute threshold disabled
+                break;
+        }
+    }
 }
 
 /*
