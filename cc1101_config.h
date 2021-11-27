@@ -7,7 +7,7 @@
 
 #include "cc1101_internal.h"
 
-unsigned char cc1101_get_mdmcfg2(const cc1101_common_config_t *rx_config, char carrier_sense);
+unsigned char cc1101_get_mdmcfg2(const cc1101_common_config_t *common_config, const cc1101_rx_config_t *rx_config);
 
 int cc1101_config_validate_rx(cc1101_t *cc1101, const cc1101_rx_config_t *rx_config);
 void cc1101_config_apply_rx(cc1101_t *cc1101);

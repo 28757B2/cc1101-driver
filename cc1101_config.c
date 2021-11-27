@@ -12,7 +12,7 @@ extern uint max_packet_size;
 unsigned char DEFAULT_CONFIG[] = {
     0x29,  // IOCFG2        GDO2 Output Pin Configuration
     0x2E,  // IOCFG1        GDO1 Output Pin Configuration
-    0x1E,  // IOCFG0        GDO0 Output Pin Configuration
+    0x3F,  // IOCFG0        GDO0 Output Pin Configuration
     0x47,  // FIFOTHR       RX FIFO and TX FIFO Thresholds
     0xD3,  // SYNC1         Sync Word, High Byte
     0x91,  // SYNC0         Sync Word, Low Byte
@@ -244,7 +244,7 @@ void cc1101_config_tx_to_registers(unsigned char *config, const cc1101_tx_config
     // Set baud rate exponent. RX bandwidth exponent and mantissa set to 0 (not used in TX)
     config[MDMCFG4] = tx_config->common.baud_rate_exponent;
     config[MDMCFG3] = tx_config->common.baud_rate_mantissa;
-    config[MDMCFG2] = cc1101_get_mdmcfg2(&tx_config->common, 0);  
+    config[MDMCFG2] = cc1101_get_mdmcfg2(&tx_config->common, NULL);  
 
     config[SYNC1] = (tx_config->common.sync_word & 0x0000FF00) >> 8;
     config[SYNC0] =  tx_config->common.sync_word & 0x000000FF;
@@ -347,14 +347,17 @@ int cc1101_config_validate_rx(cc1101_t *cc1101, const cc1101_rx_config_t *rx_con
             return 0;
     }
 
-    if(rx_config->absolute_carrier_sense){
+    if(rx_config->carrier_sense_mode == CS_DISABLED){
+        // Do nothing
+    }
+    else if(rx_config->carrier_sense_mode == CS_ABSOLUTE){
         // Absolute carrier sense threshold must be between -7 dB and 7 dB
         if(rx_config->carrier_sense < -7 || rx_config->carrier_sense > 7){
             CC1101_ERROR(cc1101, "Invalid Absolute Carrier Sense Threshold %d\n dB", rx_config->carrier_sense);
             return 0;
         }
     }
-    else {
+    else if (rx_config->carrier_sense_mode == CS_RELATIVE){
         // Relative carrier sense threshold must be either 6, 10 or 14 dB
         switch(rx_config->carrier_sense) {
             case 6:
@@ -366,6 +369,11 @@ int cc1101_config_validate_rx(cc1101_t *cc1101, const cc1101_rx_config_t *rx_con
                 return 0;
         }
     }
+    else {
+        CC1101_ERROR(cc1101, "Invalid Carrier Sense Mode %d\n", rx_config->carrier_sense_mode);
+        return 0;
+    }
+    
 
     // Validate the packet length value provided from userspace
     if(rx_config->packet_length == 0 || rx_config->packet_length > max_packet_size) {
@@ -414,7 +422,7 @@ void cc1101_config_rx_to_registers(unsigned char *config, const cc1101_rx_config
 
     config[MDMCFG4] = rx_config->bandwidth_exponent << 6 | rx_config->bandwidth_mantissa << 4 | rx_config->common.baud_rate_exponent;
     config[MDMCFG3] = rx_config->common.baud_rate_mantissa;
-    config[MDMCFG2] = cc1101_get_mdmcfg2(&rx_config->common, rx_config->carrier_sense);  
+    config[MDMCFG2] = cc1101_get_mdmcfg2(&rx_config->common, rx_config);  
 
     config[SYNC1] = (rx_config->common.sync_word & 0x0000FF00) >> 8;
     config[SYNC0] =  rx_config->common.sync_word & 0x000000FF;
@@ -492,7 +500,7 @@ void cc1101_config_rx_to_registers(unsigned char *config, const cc1101_rx_config
 
     // Set the CARRIER_SENSE_REL_THR and CARRIER_SENSE_ABS_THR based on the config value
     // Set AGC_LNA_PRIORITY to the default value
-    if(rx_config->absolute_carrier_sense){
+    if(rx_config->carrier_sense_mode == CS_ABSOLUTE){
         switch(rx_config->carrier_sense) {
             case -7:
                 config[AGCCTRL1] = 0x49;
@@ -541,7 +549,7 @@ void cc1101_config_rx_to_registers(unsigned char *config, const cc1101_rx_config
                 break;
         }
     }
-    else {
+    else if(rx_config->carrier_sense_mode == CS_RELATIVE){
         switch(rx_config->carrier_sense) {
             case 6:
                 config[AGCCTRL1] = 0x58; // Default AGC_LNA_PRIORITY. CARRIER_SENSE_REL_THR 6dB increase in RSSI. CS absolute threshold disabled
@@ -578,13 +586,21 @@ void cc1101_config_apply_rx(cc1101_t *cc1101) {
 * 
 * Arguments:
 *   config: common config for TX or RX
-*   carrier_sense: the carrier sense value being used for RX. Can be any value when used for TX
+*   rx_config: an RX configuration. Can be NULL for TX
 */
-unsigned char cc1101_get_mdmcfg2(const cc1101_common_config_t *config, char carrier_sense) {
+unsigned char cc1101_get_mdmcfg2(const cc1101_common_config_t *config, const cc1101_rx_config_t *rx_config) {
 
     unsigned char value = (config->modulation << 4) & 0x70; // Enable DC Filter. Modulation from config.
 
-    if(carrier_sense > 0){
+    if(rx_config == NULL || rx_config->carrier_sense_mode == CS_DISABLED) {
+        if(config->sync_word > 0 && config->sync_word <= 0xFFFF) {
+            value = value | 0x02; //Manchester encoding disabled. 16 sync bits, carrier sense disabled
+        }
+        else if(config->sync_word > 0xFFFF) {
+            value = value | 0x03; //Manchester encoding disabled. 32 sync bits, carrier sense disabled
+        }
+    }
+    else {
         if(config->sync_word == 0){
             value = value | 0x04; //Manchester encoding disabled. no sync word, carrier sense enabled
         }
@@ -594,15 +610,6 @@ unsigned char cc1101_get_mdmcfg2(const cc1101_common_config_t *config, char carr
         else {
             value = value | 0x07; //Manchester encoding disabled. 32 sync bits, carrier sense enabled
         }
-    }
-    else {
-        if(config->sync_word > 0 && config->sync_word <= 0xFFFF) {
-            value = value | 0x02; //Manchester encoding disabled. 16 sync bits, carrier sense disabled
-        }
-        else if(config->sync_word > 0xFFFF) {
-            value = value | 0x03; //Manchester encoding disabled. 32 sync bits, carrier sense disabled
-        }
-        // If no sync word or carrier sense, value is already correct (4 lsb == 0)
     }
 
     return value; 

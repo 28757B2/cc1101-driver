@@ -364,7 +364,7 @@ irqreturn_t cc1101_rx_interrupt(int irq, void *handle)
             cc1101_flush_rx_fifo(cc1101);
 
             // Reset SYNC_MODE to the value from the config
-            cc1101_spi_write_config_register(cc1101, MDMCFG2, cc1101_get_mdmcfg2(&cc1101->rx_config.common, cc1101->rx_config.carrier_sense));
+            cc1101_spi_write_config_register(cc1101, MDMCFG2, cc1101_get_mdmcfg2(&cc1101->rx_config.common, &cc1101->rx_config));
 
             // Put the device back into receive mode ready to receive the next packet
             change_state(cc1101, MODE_RX);
@@ -399,7 +399,7 @@ irqreturn_t cc1101_rx_interrupt(int irq, void *handle)
 
             // Set SYNC_MODE to "No Preamble/Sync" - this will cause RX to continue even if carrier-sense drops below the defined threshold
             // This prevents a situation where more bytes are expected for the current packet but another interrupt doesn't occur
-            cc1101_spi_write_config_register(cc1101, MDMCFG2, cc1101_get_mdmcfg2(&cc1101->rx_config.common, cc1101->rx_config.carrier_sense) & 0xF8);
+            cc1101_spi_write_config_register(cc1101, MDMCFG2, cc1101_get_mdmcfg2(&cc1101->rx_config.common, &cc1101->rx_config) & 0xF8);
 
             // Start a timer for how long we should wait for another interrupt to arrive
             mod_timer(&cc1101->rx_timeout, jiffies + msecs_to_jiffies(RX_TIMEOUT_MS));
@@ -412,7 +412,7 @@ irqreturn_t cc1101_rx_interrupt(int irq, void *handle)
             cc1101->bytes_remaining = 0;
 
             // Reset SYNC_MODE to the value from the config
-            cc1101_spi_write_config_register(cc1101, MDMCFG2, cc1101_get_mdmcfg2(&cc1101->rx_config.common, cc1101->rx_config.carrier_sense));
+            cc1101_spi_write_config_register(cc1101, MDMCFG2, cc1101_get_mdmcfg2(&cc1101->rx_config.common, &cc1101->rx_config));
 
             // Release the device lock
             mutex_unlock(&cc1101->device_lock);
@@ -468,7 +468,7 @@ irqreturn_t cc1101_rx_interrupt(int irq, void *handle)
             cc1101_flush_rx_fifo(cc1101);
 
             // Reset SYNC_MODE to the value from the config
-            cc1101_spi_write_config_register(cc1101, MDMCFG2, cc1101_get_mdmcfg2(&cc1101->rx_config.common, cc1101->rx_config.carrier_sense));
+            cc1101_spi_write_config_register(cc1101, MDMCFG2, cc1101_get_mdmcfg2(&cc1101->rx_config.common, &cc1101->rx_config));
 
             // Put the device back into receive mode ready to receive the next packet
             change_state(cc1101, MODE_RX);

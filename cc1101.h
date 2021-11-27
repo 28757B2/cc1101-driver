@@ -17,6 +17,10 @@ typedef unsigned char cc1101_patable_t[PATABLE_LEN];
 #define MOD_4FSK    4
 #define MOD_MSK     7
 
+#define CS_DISABLED 0
+#define CS_RELATIVE 1
+#define CS_ABSOLUTE 2
+
 typedef struct {
     unsigned frequency;
     unsigned char modulation;
@@ -35,7 +39,7 @@ typedef struct {
     unsigned char max_lna_gain;
     unsigned char max_dvga_gain;
     unsigned char magn_target;
-    unsigned char absolute_carrier_sense;
+    unsigned char carrier_sense_mode;
     signed char carrier_sense;
     unsigned packet_length;
 } cc1101_rx_config_t;
