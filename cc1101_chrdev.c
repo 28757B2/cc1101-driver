@@ -33,6 +33,8 @@
 #define CC1101_GET_DEV_RAW_CONF _IOR(CC1101_BASE, 8, cc1101_device_config_t)
 // Get the current RSSI
 #define CC1101_GET_RSSI _IOR(CC1101_BASE, 9, unsigned char)
+// Get the configured maximum packet size
+#define CC1101_GET_MAX_PACKET_SIZE _IOR(CC1101_BASE, 10, uint)
 
 #define SPI_MAJOR_NUMBER 153
 #define N_SPI_MINOR_NUMBERS 12
@@ -241,6 +243,10 @@ static long chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
         case CC1101_GET_RSSI:
             rssi = cc1101_spi_read_status_register_once(cc1101, RSSI);
             ret = copy_to_user((unsigned char*) arg, &rssi.data, sizeof(rssi.data));
+            break;
+
+        case CC1101_GET_MAX_PACKET_SIZE:
+            ret = copy_to_user((unsigned char*) arg, &max_packet_size, sizeof(max_packet_size));
             break;
 
         default:
