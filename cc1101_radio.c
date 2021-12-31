@@ -28,18 +28,18 @@ static void change_state(cc1101_t* cc1101, cc1101_mode_t to){
             command = SIDLE;
             switch(cc1101->mode) {
                 case MODE_TX:
-                    CC1101_DEBUG(cc1101, "TX -> IDLE\n");
+                    CC1101_DEBUG(cc1101, "TX -> IDLE");
                     delay = TIME_TX_TO_IDLE_CAL;
                     break;
                 case MODE_RX:
-                    CC1101_DEBUG(cc1101, "RX -> IDLE\n");
+                    CC1101_DEBUG(cc1101, "RX -> IDLE");
                     delay = TIME_RX_TO_IDLE_CAL;
                     break;
                 case MODE_IDLE:
-                    CC1101_DEBUG(cc1101, "IDLE -> IDLE\n");
+                    CC1101_DEBUG(cc1101, "IDLE -> IDLE");
                     return;
                 default: 
-                    CC1101_DEBUG(cc1101, "%d -> IDLE\n", to);
+                    CC1101_DEBUG(cc1101, "%d -> IDLE", to);
                     return;
             }
             break;
@@ -47,18 +47,18 @@ static void change_state(cc1101_t* cc1101, cc1101_mode_t to){
             command = STX;
             switch(cc1101->mode) {
                 case MODE_IDLE:
-                    CC1101_DEBUG(cc1101, "IDLE -> TX\n");
+                    CC1101_DEBUG(cc1101, "IDLE -> TX");
                     delay = TIME_IDLE_TO_TX_CAL;
                     break;
                 case MODE_RX:
-                    CC1101_DEBUG(cc1101, "RX -> TX\n");
+                    CC1101_DEBUG(cc1101, "RX -> TX");
                     delay = TIME_RX_TO_TX;
                     break;
                 case MODE_TX:
-                    CC1101_DEBUG(cc1101, "TX -> TX\n");
+                    CC1101_DEBUG(cc1101, "TX -> TX");
                     return;
                 default: 
-                    CC1101_DEBUG(cc1101, "%d -> TX\n", to);
+                    CC1101_DEBUG(cc1101, "%d -> TX", to);
                     return;
             }
             break;
@@ -66,18 +66,18 @@ static void change_state(cc1101_t* cc1101, cc1101_mode_t to){
             command = SRX;
             switch(cc1101->mode) {
                 case MODE_IDLE:
-                    CC1101_DEBUG(cc1101, "IDLE -> RX\n");
+                    CC1101_DEBUG(cc1101, "IDLE -> RX");
                     delay = TIME_IDLE_TO_RX_CAL;
                     break;
                 case MODE_TX:
-                    CC1101_DEBUG(cc1101, "TX -> RX\n");
+                    CC1101_DEBUG(cc1101, "TX -> RX");
                     delay = TIME_TX_TO_RX;
                     break;
                 case MODE_RX:
-                    CC1101_DEBUG(cc1101, "RX -> RX\n");
+                    CC1101_DEBUG(cc1101, "RX -> RX");
                     return;
                 default: 
-                    CC1101_DEBUG(cc1101, "%d -> RX\n", to);
+                    CC1101_DEBUG(cc1101, "%d -> RX", to);
                     return;
             }
             break;
@@ -120,7 +120,7 @@ void cc1101_flush_tx_fifo(cc1101_t *cc1101){
 */
 void cc1101_idle(cc1101_t* cc1101)
 {
-    CC1101_DEBUG(cc1101, "Idle Mode\n");
+    CC1101_DEBUG(cc1101, "Idle Mode");
     change_state(cc1101, MODE_IDLE);
 }
 
@@ -132,7 +132,7 @@ void cc1101_idle(cc1101_t* cc1101)
 */
 void cc1101_rx(cc1101_t* cc1101)
 {
-    CC1101_DEBUG(cc1101, "Receive Mode\n");
+    CC1101_DEBUG(cc1101, "Receive Mode");
     change_state(cc1101, MODE_RX);
 }
 
@@ -174,7 +174,7 @@ static void tx_multi(cc1101_t* cc1101, const char* buf, size_t len){
     // Instruct the device to begin transmission
     change_state(cc1101, MODE_TX);
 
-    CC1101_DEBUG(cc1101, "Transmitting %d bytes, %d remaining, %d Total\n", 32, bytes_remaining, len);
+    CC1101_DEBUG(cc1101, "Transmitting %d bytes, %d remaining, %d Total", 32, bytes_remaining, len);
 
     // While there is still more than one fragment to transmit
     while(bytes_remaining >= 32){
@@ -195,7 +195,7 @@ static void tx_multi(cc1101_t* cc1101, const char* buf, size_t len){
             // Write the fragment to the device's TX FIFO and decrement the number of bytes left in the packet
             cc1101_spi_write_txfifo(cc1101, &buf[len-bytes_remaining], 32);
             bytes_remaining-=32;
-            CC1101_DEBUG(cc1101, "Transmitting %d bytes, %d remaining, %d Total\n", 32, bytes_remaining, len);
+            CC1101_DEBUG(cc1101, "Transmitting %d bytes, %d remaining, %d Total", 32, bytes_remaining, len);
         }
     }
 
@@ -207,7 +207,7 @@ static void tx_multi(cc1101_t* cc1101, const char* buf, size_t len){
     if(remainder > 0){
         // Otherwise, write the last fragment to the device
         cc1101_spi_write_txfifo(cc1101, &buf[len-remainder], remainder);
-        CC1101_DEBUG(cc1101, "Transmitting %d bytes, %d remaining, %d Total\n", remainder, 0, len);
+        CC1101_DEBUG(cc1101, "Transmitting %d bytes, %d remaining, %d Total", remainder, 0, len);
     }
     
     // Wait until transmission has finished
@@ -249,7 +249,7 @@ static void tx_single(cc1101_t* cc1101, const char* buf, size_t len)
     // Instruct the device to begin transmission
     change_state(cc1101, MODE_TX);
     
-    CC1101_DEBUG(cc1101, "Transmitting %d bytes, %d remaining, %d Total\n", len, 0, len);
+    CC1101_DEBUG(cc1101, "Transmitting %d bytes, %d remaining, %d Total", len, 0, len);
 
     // Wait until transmission has finished. Handle overflow condition
     do {
@@ -276,7 +276,7 @@ static void tx_single(cc1101_t* cc1101, const char* buf, size_t len)
 */
 void cc1101_tx(cc1101_t* cc1101, const char* buf, size_t len){
 
-    CC1101_DEBUG(cc1101, "Transmit Mode\n");
+    CC1101_DEBUG(cc1101, "Transmit Mode");
     // Put the device into idle mode
     change_state(cc1101, MODE_IDLE);
 
@@ -311,7 +311,7 @@ void cc1101_tx(cc1101_t* cc1101, const char* buf, size_t len){
 */
 void cc1101_reset(cc1101_t* cc1101)
 {
-    CC1101_DEBUG(cc1101, "Reset\n");
+    CC1101_DEBUG(cc1101, "Reset");
 
     // Reset the device
     cc1101->mode = MODE_IDLE;
@@ -345,7 +345,7 @@ irqreturn_t cc1101_rx_interrupt(int irq, void *handle)
     int fifo_available;
     unsigned char rx_bytes;
     
-    CC1101_DEBUG(cc1101, "Interrupt\n");
+    CC1101_DEBUG(cc1101, "Interrupt");
 
     // Interrupt is only used when the driver is in receive mode
     if(cc1101->mode == MODE_RX){
@@ -382,7 +382,7 @@ irqreturn_t cc1101_rx_interrupt(int irq, void *handle)
             // Try to lock the device
             if(mutex_trylock(&cc1101->device_lock) != 1){
                 // If this fails, it is because a process has /dev/cc1101.x.x open
-                CC1101_DEBUG(cc1101, "Interrupt Handler Failed To Acquire Lock\n");
+                CC1101_DEBUG(cc1101, "Interrupt Handler Failed To Acquire Lock");
 
                 // Drain the device's RX FIFO, otherwise it will overflow, causing RX to stop
                 // This can be drained into the temp buffer as the next interrupt will start a new packet and overwrite it anyway
@@ -392,7 +392,7 @@ irqreturn_t cc1101_rx_interrupt(int irq, void *handle)
                 return IRQ_HANDLED;
             }
             // If the lock is held, a packet can be received  
-            CC1101_DEBUG(cc1101, "Receiving Packet\n");
+            CC1101_DEBUG(cc1101, "Receiving Packet");
 
             // Update the number of bytes to receive from the RX configuration
             cc1101->bytes_remaining = cc1101->rx_config.packet_length;
@@ -420,7 +420,7 @@ irqreturn_t cc1101_rx_interrupt(int irq, void *handle)
         // Received some bytes, but there are still some remaining in the packet to be received
         else if(rx_bytes < cc1101->bytes_remaining){
 
-            CC1101_DEBUG(cc1101, "Received %d Bytes, Read %d Bytes, %d Bytes Remaining\n", rx_bytes, rx_bytes - 1, cc1101->bytes_remaining - (rx_bytes - 1)); 
+            CC1101_DEBUG(cc1101, "Received %d Bytes, Read %d Bytes, %d Bytes Remaining", rx_bytes, rx_bytes - 1, cc1101->bytes_remaining - (rx_bytes - 1)); 
             
             // Read the received number of bytes from the device's RX FIFO into the temporary buffer
             cc1101_spi_read_rxfifo(cc1101, &cc1101->current_packet[cc1101->rx_config.packet_length - cc1101->bytes_remaining], rx_bytes - 1);
@@ -437,7 +437,7 @@ irqreturn_t cc1101_rx_interrupt(int irq, void *handle)
         else {
             del_timer(&cc1101->rx_timeout);
 
-            CC1101_DEBUG(cc1101, "Received %d Bytes, Read %d Bytes, %d Bytes Remaining\n", rx_bytes, cc1101->bytes_remaining, 0); 
+            CC1101_DEBUG(cc1101, "Received %d Bytes, Read %d Bytes, %d Bytes Remaining", rx_bytes, cc1101->bytes_remaining, 0); 
 
             // RX has finished and the required bytes are in the device's RX FIFO, so put the device in idle mode
             change_state(cc1101, MODE_IDLE);
@@ -459,7 +459,7 @@ irqreturn_t cc1101_rx_interrupt(int irq, void *handle)
             // Add the new packet to the received packet buffer
             kfifo_in(&cc1101->rx_fifo, cc1101->current_packet, cc1101->rx_config.packet_length);
 
-            CC1101_DEBUG(cc1101, "Packet Received\n");
+            CC1101_DEBUG(cc1101, "Packet Received");
 
             // Reset the number of bytes remaining
             cc1101->bytes_remaining = 0;

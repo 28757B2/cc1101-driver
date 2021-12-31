@@ -161,25 +161,25 @@ int cc1101_config_validate_common(cc1101_t *cc1101, const cc1101_common_config_t
             (config->frequency >= 1963559 && config->frequency <= 2339131)
         )){
 
-        CC1101_ERROR(cc1101, "Invalid Frequency - %X\n", config->frequency);
+        CC1101_ERROR(cc1101, "Invalid Frequency - %X", config->frequency);
         return 0;
     }
 
     if(validate_baud_rate(baud_rate, config->modulation) == 0){
-        CC1101_ERROR(cc1101, "Invalid Baud Rate - E:%02x M:%02x\n", config->baud_rate_exponent, config->baud_rate_mantissa);
+        CC1101_ERROR(cc1101, "Invalid Baud Rate - E:%02x M:%02x", config->baud_rate_exponent, config->baud_rate_mantissa);
         return 0;
     }
 
     // Sync word is allowed to be any 16 bit value, or the same 16-bit value twice
     if(config->sync_word > 0xFFFF) {
         if((config->sync_word & 0x0000FFFF) != (config->sync_word >> 16)) {
-            CC1101_ERROR(cc1101, "Invalid Sync Word - %08lx\n", config->sync_word);
+            CC1101_ERROR(cc1101, "Invalid Sync Word - %08lx", config->sync_word);
             return 0;
         }
     }
 
     if(config->deviation_exponent > 0x07 || config->deviation_mantissa > 0x07){
-        CC1101_ERROR(cc1101, "Invalid Deviation - E: %02x M: %02x\n", config->deviation_exponent, config->deviation_mantissa);
+        CC1101_ERROR(cc1101, "Invalid Deviation - E: %02x M: %02x", config->deviation_exponent, config->deviation_mantissa);
         return 0;
     }
 
@@ -317,7 +317,7 @@ int cc1101_config_validate_rx(cc1101_t *cc1101, const cc1101_rx_config_t *rx_con
         case 17:
             break;
         default:
-            CC1101_ERROR(cc1101, "Invalid Max LNA Gain %d\n dB", rx_config->max_lna_gain);
+            CC1101_ERROR(cc1101, "Invalid Max LNA Gain %d dB", rx_config->max_lna_gain);
             return 0;
     }
 
@@ -328,7 +328,7 @@ int cc1101_config_validate_rx(cc1101_t *cc1101, const cc1101_rx_config_t *rx_con
         case 18:
             break;
         default:
-            CC1101_ERROR(cc1101, "Invalid Max DVGA Gain %d dB\n", rx_config->max_dvga_gain);
+            CC1101_ERROR(cc1101, "Invalid Max DVGA Gain %d dB", rx_config->max_dvga_gain);
             return 0;
     }
 
@@ -343,7 +343,7 @@ int cc1101_config_validate_rx(cc1101_t *cc1101, const cc1101_rx_config_t *rx_con
         case 42:
             break;
         default:
-            CC1101_ERROR(cc1101, "Invalid Channel Filter Target Amplitude %d dB\n", rx_config->magn_target);
+            CC1101_ERROR(cc1101, "Invalid Channel Filter Target Amplitude %d dB", rx_config->magn_target);
             return 0;
     }
 
@@ -353,7 +353,7 @@ int cc1101_config_validate_rx(cc1101_t *cc1101, const cc1101_rx_config_t *rx_con
     else if(rx_config->carrier_sense_mode == CS_ABSOLUTE){
         // Absolute carrier sense threshold must be between -7 dB and 7 dB
         if(rx_config->carrier_sense < -7 || rx_config->carrier_sense > 7){
-            CC1101_ERROR(cc1101, "Invalid Absolute Carrier Sense Threshold %d\n dB", rx_config->carrier_sense);
+            CC1101_ERROR(cc1101, "Invalid Absolute Carrier Sense Threshold %d dB", rx_config->carrier_sense);
             return 0;
         }
     }
@@ -365,25 +365,25 @@ int cc1101_config_validate_rx(cc1101_t *cc1101, const cc1101_rx_config_t *rx_con
             case 14:
                 break;
             default:
-                CC1101_ERROR(cc1101, "Invalid Relative Carrier Sense Threshold %d\n dB", rx_config->carrier_sense);
+                CC1101_ERROR(cc1101, "Invalid Relative Carrier Sense Threshold %d dB", rx_config->carrier_sense);
                 return 0;
         }
     }
     else {
-        CC1101_ERROR(cc1101, "Invalid Carrier Sense Mode %d\n", rx_config->carrier_sense_mode);
+        CC1101_ERROR(cc1101, "Invalid Carrier Sense Mode %d", rx_config->carrier_sense_mode);
         return 0;
     }
     
 
     // Validate the packet length value provided from userspace
     if(rx_config->packet_length == 0 || rx_config->packet_length > max_packet_size) {
-        CC1101_ERROR(cc1101, "Invalid Receive Packet Length %d\n", rx_config->packet_length);
+        CC1101_ERROR(cc1101, "Invalid Receive Packet Length %d", rx_config->packet_length);
         return 0;
     }
 
     // Validate Bandwidth
     if(rx_config->bandwidth_exponent > 3 || rx_config->bandwidth_mantissa > 3){
-        CC1101_ERROR(cc1101, "Invalid Deviation - E: %02x M: %02x\n", rx_config->bandwidth_exponent, rx_config->bandwidth_mantissa);
+        CC1101_ERROR(cc1101, "Invalid Deviation - E: %02x M: %02x", rx_config->bandwidth_exponent, rx_config->bandwidth_mantissa);
         return 0;
     }
 
