@@ -501,53 +501,7 @@ void cc1101_config_rx_to_registers(unsigned char *config, const cc1101_rx_config
     // Set the CARRIER_SENSE_REL_THR and CARRIER_SENSE_ABS_THR based on the config value
     // Set AGC_LNA_PRIORITY to the default value
     if(rx_config->carrier_sense_mode == CS_ABSOLUTE){
-        switch(rx_config->carrier_sense) {
-            case -7:
-                config[AGCCTRL1] = 0x49;
-                break;
-            case -6:
-                config[AGCCTRL1] = 0x4A;
-                break;
-            case -5:
-                config[AGCCTRL1] = 0x4B;
-                break;
-            case -4:
-                config[AGCCTRL1] = 0x4C;
-                break;
-            case -3:
-                config[AGCCTRL1] = 0x4D;
-                break;
-            case -2:
-                config[AGCCTRL1] = 0x4E;
-                break;
-            case -1:
-                config[AGCCTRL1] = 0x4F;
-                break;
-            case 1:
-                config[AGCCTRL1] = 0x41;
-                break;
-            case 2:
-                config[AGCCTRL1] = 0x42;
-                break;
-            case 3:
-                config[AGCCTRL1] = 0x43;
-                break;
-            case 4:
-                config[AGCCTRL1] = 0x44;
-                break;
-            case 5:
-                config[AGCCTRL1] = 0x45;
-                break;
-            case 6:
-                config[AGCCTRL1] = 0x46;
-                break;
-            case 7:
-                config[AGCCTRL1] = 0x47;
-                break;
-            default:
-                config[AGCCTRL1] = 0x40;
-                break;
-        }
+        config[AGCCTRL1] = 0x40 | ((char) rx_config->carrier_sense & 0x0F);
     }
     else if(rx_config->carrier_sense_mode == CS_RELATIVE){
         switch(rx_config->carrier_sense) {
