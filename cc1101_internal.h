@@ -115,13 +115,13 @@
 // Error macros
 #ifndef CONFIG_DYNAMIC_DEBUG
 extern uint debug;
-#define CC1101_DEBUG(cc1101, format "\n", ...)    if (debug) dev_info(&cc1101->spi->dev, format, ##__VA_ARGS__)
+#define CC1101_DEBUG(cc1101, format, ...)    if (debug) dev_info(&cc1101->spi->dev, format "\n", ##__VA_ARGS__)
 #else
-#define CC1101_DEBUG(cc1101, format "\n", ...)    dev_dbg(&cc1101->spi->dev, format, ##__VA_ARGS__)
+#define CC1101_DEBUG(cc1101, format, ...)    dev_dbg(&cc1101->spi->dev, format "\n", ##__VA_ARGS__)
 #endif
 
-#define CC1101_INFO(cc1101, format "\n", ...)     dev_info(&cc1101->spi->dev, format, ##__VA_ARGS__)
-#define CC1101_ERROR(cc1101, format "\n", ...)    dev_err(&cc1101->spi->dev, format, ##__VA_ARGS__)
+#define CC1101_INFO(cc1101, format, ...)     dev_info(&cc1101->spi->dev, format "\n", ##__VA_ARGS__)
+#define CC1101_ERROR(cc1101, format, ...)    dev_err(&cc1101->spi->dev, format "\n", ##__VA_ARGS__)
 
 // Driver state
 typedef enum {
