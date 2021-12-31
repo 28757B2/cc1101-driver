@@ -50,18 +50,18 @@ Note: SPI Bus 1 on the Raspberry Pi 3 and earlier does not support the SPI mode 
 sudo apt install raspberrypi-kernel-headers dkms git
 
 # Clone repository
-sudo mkdir /usr/src/cc1101-1.3.0
-sudo chown -R pi:pi /usr/src/cc1101-1.3.0
-cd /usr/src/cc1101-1.3.0
+sudo mkdir /usr/src/cc1101-1.3.1
+sudo chown -R pi:pi /usr/src/cc1101-1.3.1
+cd /usr/src/cc1101-1.3.1
 git clone https://github.com/28757B2/cc1101-driver.git .
 
 # Only permit root to alter module source
-sudo chown -R root:root /usr/src/cc1101-1.3.0
+sudo chown -R root:root /usr/src/cc1101-1.3.1
 
 # Build with DKMS
-sudo dkms add -m cc1101 -v 1.3.0
-sudo dkms build -m cc1101 -v 1.3.0
-sudo dkms install -m cc1101 -v 1.3.0
+sudo dkms add -m cc1101 -v 1.3.1
+sudo dkms build -m cc1101 -v 1.3.1
+sudo dkms install -m cc1101 -v 1.3.1
 
 # Enable SPI
 sudo sed -i "s/^#dtparam=spi=on$/dtparam=spi=on/" /boot/config.txt
@@ -137,11 +137,11 @@ By default, the `/dev/cc1101.x.x` devices will belong to `root:root`. The follow
     SUBSYSTEM=="cc1101", OWNER="pi", GROUP="pi", MODE="0660"
 
 ### DKMS
-DKMS can be used to ensure the module is re-compiled whenever a new kernel is installed. Checkout the project to /usr/src/cc1101-1.3.0/ and run the following DKMS commands from the folder:
+DKMS can be used to ensure the module is re-compiled whenever a new kernel is installed. Checkout the project to /usr/src/cc1101-1.3.1/ and run the following DKMS commands from the folder:
 
-    dkms add -m cc1101 -v 1.3.0
-    dkms build -m cc1101 -v 1.3.0
-    dkms install -m cc1101 -v 1.3.0
+    dkms add -m cc1101 -v 1.3.1
+    dkms build -m cc1101 -v 1.3.1
+    dkms install -m cc1101 -v 1.3.1
 
 
 ### Debugging
