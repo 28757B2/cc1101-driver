@@ -148,19 +148,17 @@ void cc1101_rx(cc1101_t* cc1101)
 */
 static void tx_multi(cc1101_t* cc1101, const char* buf, size_t len){
 
-    size_t remainder, bytes_remaining;
+    size_t bytes_remaining, fragment_size;
     unsigned char tx_bytes;
-
-    // Calculate number of bytes in the last fragment of the packet
-    remainder = len % 32;
+    int fixed_packet_mode = 0;
 
     // Before transmission, the full packet length is left to transmit
     bytes_remaining = len;
 
-    // Write the length of the last fragment to the device PKTLEN register
+    // Write the value that the packet counter will be at when transmission finishes into PKTLEN
     // This is recommended by the datasheet, but will not be used until the radio
     // is placed in fixed length packet mode 
-    cc1101_spi_write_config_register(cc1101, PKTLEN, remainder);
+    cc1101_spi_write_config_register(cc1101, PKTLEN, len % 256);
     
     // Set to continual transmit mode
     cc1101_spi_write_config_register(cc1101, PKTCTRL0, 0x02);
@@ -176,10 +174,10 @@ static void tx_multi(cc1101_t* cc1101, const char* buf, size_t len){
 
     CC1101_DEBUG(cc1101, "Transmitting %d bytes, %d remaining, %d Total", 32, bytes_remaining, len);
 
-    // While there is still more than one fragment to transmit
-    while(bytes_remaining >= 32){
-        
-        // Read the current number of transmitted bytes from the device
+    // While there are still bytes to transmit
+    while(bytes_remaining != 0){
+
+        // Read the current number bytes in the FIFO to be transmitted
         tx_bytes = cc1101_spi_read_status_register(cc1101, TXBYTES).data;
 
         // Check for underflow, exit 
@@ -192,24 +190,24 @@ static void tx_multi(cc1101_t* cc1101, const char* buf, size_t len){
         // If there are less than 32 bytes left of the current fragment to transmit, there is room in the 
         // device's FIFO to fit another fragment
         if(tx_bytes < 32){
+
+            // Switch to fixed packet mode if we're safely within the last 256 bytes and haven't already
+            if(!fixed_packet_mode && bytes_remaining < 128){
+                cc1101_spi_write_config_register(cc1101, PKTCTRL0, 0x00);
+                fixed_packet_mode = 1;
+            }
+
+            // If there are less than 32 bytes left to transmit, set the number of bytes to transmit to the remaining length
+            // Otherwise, transmit a full 32 bytes
+            fragment_size = bytes_remaining < 32 ? bytes_remaining : 32;
+
             // Write the fragment to the device's TX FIFO and decrement the number of bytes left in the packet
-            cc1101_spi_write_txfifo(cc1101, &buf[len-bytes_remaining], 32);
-            bytes_remaining-=32;
-            CC1101_DEBUG(cc1101, "Transmitting %d bytes, %d remaining, %d Total", 32, bytes_remaining, len);
+            cc1101_spi_write_txfifo(cc1101, &buf[len-bytes_remaining], fragment_size);
+            bytes_remaining-=fragment_size;
+            CC1101_DEBUG(cc1101, "Transmitting %d bytes, %d remaining, %d Total", fragment_size, bytes_remaining, len);
         }
     }
 
-    // Last fragment is ready to transmit, set the device to the fixed mode
-    // This will cause it to stop trasmitting after the number of bytes in the last fragment have been transmitted, as set above
-    cc1101_spi_write_config_register(cc1101, PKTCTRL0, 0x00);
-    
-    // Remainder could be zero, in which case there is nothing to do
-    if(remainder > 0){
-        // Otherwise, write the last fragment to the device
-        cc1101_spi_write_txfifo(cc1101, &buf[len-remainder], remainder);
-        CC1101_DEBUG(cc1101, "Transmitting %d bytes, %d remaining, %d Total", remainder, 0, len);
-    }
-    
     // Wait until transmission has finished
     do {
         bytes_remaining = cc1101_spi_read_status_register(cc1101, TXBYTES).data;
@@ -358,7 +356,7 @@ irqreturn_t cc1101_rx_interrupt(int irq, void *handle)
 
         // If an overflow has occured part of the packet will have been missed, so reset and wait for the next packet
         if(rx_bytes > FIFO_LEN) {
-            CC1101_ERROR(cc1101, "RXFIFO Overflow. If this error persists, decrease baud rate\n");
+            CC1101_ERROR(cc1101, "RXFIFO Overflow. If this error persists, decrease baud rate");
             
             // Flush the RXFIFO
             cc1101_flush_rx_fifo(cc1101);
@@ -408,7 +406,7 @@ irqreturn_t cc1101_rx_interrupt(int irq, void *handle)
         // Something went wrong and there aren't any bytes in the RX FIFO even though GDO2 went high
         if(rx_bytes == 0){
             // Reset the receive counter, so the next interrupt will be the start of a new packet 
-            CC1101_ERROR(cc1101, "Receive Error, Waiting for Next Packet\n");
+            CC1101_ERROR(cc1101, "Receive Error, Waiting for Next Packet");
             cc1101->bytes_remaining = 0;
 
             // Reset SYNC_MODE to the value from the config
