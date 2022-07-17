@@ -172,7 +172,7 @@ static void tx_multi(cc1101_t* cc1101, const char* buf, size_t len){
     // Instruct the device to begin transmission
     change_state(cc1101, MODE_TX);
 
-    CC1101_DEBUG(cc1101, "Transmitting %d bytes, %d remaining, %d Total", 32, bytes_remaining, len);
+    CC1101_DEBUG(cc1101, "Transmitting 32 bytes, %zu remaining, %zu Total", bytes_remaining, len);
 
     // While there are still bytes to transmit
     while(bytes_remaining != 0){
@@ -204,7 +204,7 @@ static void tx_multi(cc1101_t* cc1101, const char* buf, size_t len){
             // Write the fragment to the device's TX FIFO and decrement the number of bytes left in the packet
             cc1101_spi_write_txfifo(cc1101, &buf[len-bytes_remaining], fragment_size);
             bytes_remaining-=fragment_size;
-            CC1101_DEBUG(cc1101, "Transmitting %d bytes, %d remaining, %d Total", fragment_size, bytes_remaining, len);
+            CC1101_DEBUG(cc1101, "Transmitting %zu bytes, %zu remaining, %zu Total", fragment_size, bytes_remaining, len);
         }
     }
 
@@ -247,7 +247,7 @@ static void tx_single(cc1101_t* cc1101, const char* buf, size_t len)
     // Instruct the device to begin transmission
     change_state(cc1101, MODE_TX);
     
-    CC1101_DEBUG(cc1101, "Transmitting %d bytes, %d remaining, %d Total", len, 0, len);
+    CC1101_DEBUG(cc1101, "Transmitting %zu bytes, 0 remaining, %zu Total", len, len);
 
     // Wait until transmission has finished. Handle overflow condition
     do {

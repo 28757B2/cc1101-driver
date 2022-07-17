@@ -250,7 +250,7 @@ static long chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
             break;
 
         default:
-            CC1101_ERROR(cc1101, "Unknown Command %d, %d, %d\n", cmd, sizeof(cc1101_rx_config_t), sizeof(cc1101_tx_config_t));
+            CC1101_ERROR(cc1101, "Unknown Command %d, %zu, %zu\n", cmd, sizeof(cc1101_rx_config_t), sizeof(cc1101_tx_config_t));
             ret = -EIO;
             break;
     }
@@ -267,8 +267,8 @@ done:
 static ssize_t chrdev_read(struct file *file, char __user *buf, size_t len, loff_t *off)
 {
     cc1101_t* cc1101 = file->private_data;
-    int ret;
-    size_t out_bytes;
+    ssize_t ret;
+    unsigned int out_bytes;
 
     // Check a RX config has been set and that the out buffer is the correct size
     if (cc1101->rx_config.packet_length == 0 || len != cc1101->rx_config.packet_length) {
