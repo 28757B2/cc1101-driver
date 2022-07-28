@@ -29,7 +29,7 @@ struct cc1101_common_config {
     unsigned char deviation_mantissa;
     unsigned char deviation_exponent;
     unsigned long sync_word;
-};
+} __attribute__ ((packed));
 
 // Message sent from userspace via IOCTL containing RX mode configuration parameters
 struct cc1101_rx_config {
@@ -42,12 +42,12 @@ struct cc1101_rx_config {
     unsigned char carrier_sense_mode;
     signed char carrier_sense;
     unsigned packet_length;
-};
+} __attribute__ ((packed));
 
 // Message sent from userspace via IOCTL containing TX mode configuration parameters
 struct cc1101_tx_config {
     struct cc1101_common_config common;
     unsigned char tx_power;
-};
+} __attribute__ ((packed));
 
 #endif
