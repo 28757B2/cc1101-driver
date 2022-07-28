@@ -133,7 +133,7 @@ int validate_baud_rate(unsigned short baud_rate, unsigned char modulation) {
 * 1  - Valid Config
 * 0 - Invalid config
 */
-int cc1101_config_validate_common(cc1101_t *cc1101, const cc1101_common_config_t *config) {
+int cc1101_config_validate_common(cc1101_t *cc1101, const struct cc1101_common_config *config) {
 
     unsigned short baud_rate = config->baud_rate_exponent << 8 | config->baud_rate_mantissa;
 
@@ -198,10 +198,10 @@ int cc1101_config_validate_common(cc1101_t *cc1101, const cc1101_common_config_t
 * 1  - Valid Config
 * 0 - Invalid config
 */
-int cc1101_config_validate_tx(cc1101_t *cc1101, const cc1101_tx_config_t *tx_config) {
+int cc1101_config_validate_tx(cc1101_t *cc1101, const struct cc1101_tx_config *tx_config) {
 
     // Validate the common configuration
-    if (!cc1101_config_validate_common(cc1101, (cc1101_common_config_t *)tx_config)) {
+    if (!cc1101_config_validate_common(cc1101, (struct cc1101_common_config *)tx_config)) {
         return 0;
     }
 
@@ -218,7 +218,7 @@ int cc1101_config_validate_tx(cc1101_t *cc1101, const cc1101_tx_config_t *tx_con
 *   tx_config: a TX config struct
 *
 */
-void cc1101_config_tx_to_registers(unsigned char *config, const cc1101_tx_config_t *tx_config) {
+void cc1101_config_tx_to_registers(unsigned char *config, const struct cc1101_tx_config *tx_config) {
     // Copy the default config
     memcpy(config, &DEFAULT_CONFIG, sizeof(cc1101_device_config_t));
 
@@ -299,10 +299,10 @@ void cc1101_config_apply_tx(cc1101_t *cc1101) {
 * 1  - Valid Config
 * 0 - Invalid config
 */
-int cc1101_config_validate_rx(cc1101_t *cc1101, const cc1101_rx_config_t *rx_config) {
+int cc1101_config_validate_rx(cc1101_t *cc1101, const struct cc1101_rx_config *rx_config) {
     
     // Validate the common configuration
-    if (!cc1101_config_validate_common(cc1101, (cc1101_common_config_t *)rx_config)) {
+    if (!cc1101_config_validate_common(cc1101, (struct cc1101_common_config *)rx_config)) {
         return 0;
     }
 
@@ -398,7 +398,7 @@ int cc1101_config_validate_rx(cc1101_t *cc1101, const cc1101_rx_config_t *rx_con
 *   rx_config: an RX config struct
 *
 */
-void cc1101_config_rx_to_registers(unsigned char *config, const cc1101_rx_config_t *rx_config) {
+void cc1101_config_rx_to_registers(unsigned char *config, const struct cc1101_rx_config *rx_config) {
     // Copy the default config
     memcpy(config, &DEFAULT_CONFIG, sizeof(cc1101_device_config_t));
 
@@ -542,7 +542,7 @@ void cc1101_config_apply_rx(cc1101_t *cc1101) {
 *   config: common config for TX or RX
 *   rx_config: an RX configuration. Can be NULL for TX
 */
-unsigned char cc1101_get_mdmcfg2(const cc1101_common_config_t *config, const cc1101_rx_config_t *rx_config) {
+unsigned char cc1101_get_mdmcfg2(const struct cc1101_common_config *config, const struct cc1101_rx_config *rx_config) {
 
     unsigned char value = (config->modulation << 4) & 0x70; // Enable DC Filter. Modulation from config.
 

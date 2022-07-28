@@ -139,8 +139,8 @@ typedef struct {
     struct mutex chrdev_lock;
     struct mutex device_lock;
     cc1101_mode_t mode;
-    cc1101_tx_config_t tx_config;
-    cc1101_rx_config_t rx_config;
+    struct cc1101_tx_config tx_config;
+    struct cc1101_rx_config rx_config;
     unsigned char *current_packet;
     unsigned int bytes_remaining;
     DECLARE_KFIFO_PTR(rx_fifo, unsigned char);

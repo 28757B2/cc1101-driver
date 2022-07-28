@@ -18,15 +18,15 @@
 // Reset the device
 #define CC1101_RESET _IO(CC1101_BASE, 1)
 // Set TX configuration within driver
-#define CC1101_SET_TX_CONF _IOW(CC1101_BASE, 2, cc1101_tx_config_t)
+#define CC1101_SET_TX_CONF _IOW(CC1101_BASE, 2, struct cc1101_tx_config)
 // Set RX configuration within driver
-#define CC1101_SET_RX_CONF _IOW(CC1101_BASE, 3, cc1101_rx_config_t)
+#define CC1101_SET_RX_CONF _IOW(CC1101_BASE, 3, struct cc1101_rx_config)
 // Get TX configuration from driver
-#define CC1101_GET_TX_CONF _IOR(CC1101_BASE, 4, cc1101_tx_config_t)
+#define CC1101_GET_TX_CONF _IOR(CC1101_BASE, 4, struct cc1101_tx_config)
 // Get TX configuration registers from driver
 #define CC1101_GET_TX_RAW_CONF _IOR(CC1101_BASE, 5, cc1101_device_config_t)
 // Get RX configuration from driver
-#define CC1101_GET_RX_CONF _IOR(CC1101_BASE, 6, cc1101_rx_config_t)
+#define CC1101_GET_RX_CONF _IOR(CC1101_BASE, 6, struct cc1101_rx_config)
 // Get RX configuration registers from driver
 #define CC1101_GET_RX_RAW_CONF _IOR(CC1101_BASE, 7, cc1101_device_config_t)
 // Read configuration registers from hardware
@@ -112,9 +112,9 @@ static long chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
     // Temporary holding variables for new TX and RX configs
     cc1101_device_config_t device_config;
 #ifndef RXONLY
-    cc1101_tx_config_t tx_config;
+    struct cc1101_tx_config tx_config;
 #endif
-    cc1101_rx_config_t rx_config;
+    struct cc1101_rx_config rx_config;
 
     if(_IOC_TYPE(cmd) != CC1101_BASE){
         CC1101_ERROR(cc1101, "Invalid IOCTL\n");
@@ -165,7 +165,7 @@ static long chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
             }
 
             // Store the new RX config in the device struct
-            memcpy(&cc1101->rx_config, &rx_config, sizeof(cc1101_rx_config_t));
+            memcpy(&cc1101->rx_config, &rx_config, sizeof(struct cc1101_rx_config));
 
             // Set the device to idle before reconfiguring
             cc1101_idle(cc1101);
@@ -181,7 +181,7 @@ static long chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
         // Returns the RX config configured in the driver to userspace
         case CC1101_GET_RX_CONF:
-            ret = copy_to_user((unsigned char*) arg, &cc1101->rx_config, sizeof(cc1101_rx_config_t));
+            ret = copy_to_user((unsigned char*) arg, &cc1101->rx_config, sizeof(struct cc1101_rx_config));
             break;
 
         // Returns the register values for the RX configuration to userspace
@@ -207,7 +207,7 @@ static long chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
             }
 
             // Store the new TX config in the device struct
-            memcpy(&cc1101->tx_config, &tx_config, sizeof(cc1101_tx_config_t));
+            memcpy(&cc1101->tx_config, &tx_config, sizeof(struct cc1101_tx_config));
 
             ret = 0;
 #else
@@ -218,7 +218,7 @@ static long chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
         // Returns the TX config configured in the driver to userspace
         case CC1101_GET_TX_CONF:
 #ifndef RXONLY
-            ret = copy_to_user((unsigned char*) arg, &cc1101->tx_config, sizeof(cc1101_tx_config_t));
+            ret = copy_to_user((unsigned char*) arg, &cc1101->tx_config, sizeof(struct cc1101_tx_config));
 #else
             ret = -EPERM;
 #endif
@@ -250,7 +250,7 @@ static long chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
             break;
 
         default:
-            CC1101_ERROR(cc1101, "Unknown Command %d, %zu, %zu\n", cmd, sizeof(cc1101_rx_config_t), sizeof(cc1101_tx_config_t));
+            CC1101_ERROR(cc1101, "Unknown Command %d, %zu, %zu\n", cmd, sizeof(struct cc1101_rx_config), sizeof(struct cc1101_tx_config));
             ret = -EIO;
             break;
     }

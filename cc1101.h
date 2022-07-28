@@ -21,7 +21,7 @@ typedef unsigned char cc1101_patable_t[PATABLE_LEN];
 #define CS_RELATIVE 1
 #define CS_ABSOLUTE 2
 
-typedef struct {
+struct cc1101_common_config {
     unsigned frequency;
     unsigned char modulation;
     unsigned char baud_rate_mantissa;
@@ -29,11 +29,11 @@ typedef struct {
     unsigned char deviation_mantissa;
     unsigned char deviation_exponent;
     unsigned long sync_word;
-} cc1101_common_config_t;
+};
 
 // Message sent from userspace via IOCTL containing RX mode configuration parameters
-typedef struct {
-    cc1101_common_config_t common;
+struct cc1101_rx_config {
+    struct cc1101_common_config common;
     unsigned char bandwidth_mantissa;
     unsigned char bandwidth_exponent;
     unsigned char max_lna_gain;
@@ -42,12 +42,12 @@ typedef struct {
     unsigned char carrier_sense_mode;
     signed char carrier_sense;
     unsigned packet_length;
-} cc1101_rx_config_t;
+};
 
 // Message sent from userspace via IOCTL containing TX mode configuration parameters
-typedef struct {
-    cc1101_common_config_t common;
+struct cc1101_tx_config {
+    struct cc1101_common_config common;
     unsigned char tx_power;
-} cc1101_tx_config_t;
+};
 
 #endif
