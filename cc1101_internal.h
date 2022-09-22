@@ -10,7 +10,7 @@
 
 #include "cc1101.h"
 
-#define DRIVER_VERSION 3
+#define DRIVER_VERSION 4
 
 // Configuration Registers - CC1101 Datasheet Table 43
 // Generated in SmartRF Studio with config string #define @RN@ @<<@ 0x@AH@ @<<@ // @Rd@
@@ -142,7 +142,7 @@ typedef struct {
     struct cc1101_tx_config tx_config;
     struct cc1101_rx_config rx_config;
     unsigned char *current_packet;
-    unsigned int bytes_remaining;
+    u32 bytes_remaining;
     DECLARE_KFIFO_PTR(rx_fifo, unsigned char);
     struct timer_list rx_timeout;
     struct work_struct rx_timeout_work;

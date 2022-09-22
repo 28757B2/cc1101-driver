@@ -22,32 +22,32 @@ typedef unsigned char cc1101_patable_t[PATABLE_LEN];
 #define CS_ABSOLUTE 2
 
 struct cc1101_common_config {
-    unsigned frequency;
-    unsigned char modulation;
-    unsigned char baud_rate_mantissa;
-    unsigned char baud_rate_exponent;
-    unsigned char deviation_mantissa;
-    unsigned char deviation_exponent;
-    unsigned long sync_word;
+    __u32 frequency;
+    __u8 modulation;
+    __u8 baud_rate_mantissa;
+    __u8 baud_rate_exponent;
+    __u8 deviation_mantissa;
+    __u8 deviation_exponent;
+    __u32 sync_word;
 };
 
 // Message sent from userspace via IOCTL containing RX mode configuration parameters
 struct cc1101_rx_config {
     struct cc1101_common_config common;
-    unsigned char bandwidth_mantissa;
-    unsigned char bandwidth_exponent;
-    unsigned char max_lna_gain;
-    unsigned char max_dvga_gain;
-    unsigned char magn_target;
-    unsigned char carrier_sense_mode;
-    signed char carrier_sense;
-    unsigned packet_length;
+    __u8 bandwidth_mantissa;
+    __u8 bandwidth_exponent;
+    __u8 max_lna_gain;
+    __u8 max_dvga_gain;
+    __u8 magn_target;
+    __u8 carrier_sense_mode;
+    __s8 carrier_sense;
+    __u32 packet_length;
 };
 
 // Message sent from userspace via IOCTL containing TX mode configuration parameters
 struct cc1101_tx_config {
     struct cc1101_common_config common;
-    unsigned char tx_power;
+    __u8 tx_power;
 };
 
 #endif

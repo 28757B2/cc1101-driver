@@ -14,7 +14,7 @@
 // IOCTL Definitions
 #define CC1101_BASE 'c'
 // Get the driver IOCTL version
-#define CC1101_GET_VERSION _IOR(CC1101_BASE, 0, int)
+#define CC1101_GET_VERSION _IOR(CC1101_BASE, 0, uint)
 // Reset the device
 #define CC1101_RESET _IO(CC1101_BASE, 1)
 // Set TX configuration within driver
@@ -34,7 +34,7 @@
 // Get the current RSSI
 #define CC1101_GET_RSSI _IOR(CC1101_BASE, 9, unsigned char)
 // Get the configured maximum packet size
-#define CC1101_GET_MAX_PACKET_SIZE _IOR(CC1101_BASE, 10, uint)
+#define CC1101_GET_MAX_PACKET_SIZE _IOR(CC1101_BASE, 10, u32)
 
 #define SPI_MAJOR_NUMBER 153
 #define N_SPI_MINOR_NUMBERS 12

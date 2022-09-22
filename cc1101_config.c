@@ -172,8 +172,8 @@ int cc1101_config_validate_common(cc1101_t *cc1101, const struct cc1101_common_c
 
     // Sync word is allowed to be any 16 bit value, or the same 16-bit value twice
     if(config->sync_word > 0xFFFF) {
-        if((config->sync_word & 0x0000FFFF) != (config->sync_word >> 16)) {
-            CC1101_ERROR(cc1101, "Invalid Sync Word - %08lx", config->sync_word);
+        if((config->sync_word & 0xFFFF) != (config->sync_word >> 16)) {
+            CC1101_ERROR(cc1101, "Invalid Sync Word - %08x", config->sync_word);
             return 0;
         }
     }
@@ -239,15 +239,15 @@ void cc1101_config_tx_to_registers(unsigned char *config, const struct cc1101_tx
     // Shift frequency multiplier across registers
     config[FREQ2] = tx_config->common.frequency >> 16;
     config[FREQ1] = tx_config->common.frequency >> 8;
-    config[FREQ0] = tx_config->common.frequency & 0x00FF;
+    config[FREQ0] = tx_config->common.frequency & 0xFF;
 
     // Set baud rate exponent. RX bandwidth exponent and mantissa set to 0 (not used in TX)
     config[MDMCFG4] = tx_config->common.baud_rate_exponent;
     config[MDMCFG3] = tx_config->common.baud_rate_mantissa;
     config[MDMCFG2] = cc1101_get_mdmcfg2(&tx_config->common, NULL);  
 
-    config[SYNC1] = (tx_config->common.sync_word & 0x0000FF00) >> 8;
-    config[SYNC0] =  tx_config->common.sync_word & 0x000000FF;
+    config[SYNC1] = (tx_config->common.sync_word & 0xFF00) >> 8;
+    config[SYNC0] =  tx_config->common.sync_word & 0xFF;
 
     config[DEVIATN] = tx_config->common.deviation_exponent << 4 | tx_config->common.deviation_mantissa;
 
@@ -418,14 +418,14 @@ void cc1101_config_rx_to_registers(unsigned char *config, const struct cc1101_rx
     // User Configuration
     config[FREQ2] = rx_config->common.frequency >> 16;
     config[FREQ1] = rx_config->common.frequency >> 8;
-    config[FREQ0] = rx_config->common.frequency & 0x00FF;
+    config[FREQ0] = rx_config->common.frequency & 0xFF;
 
     config[MDMCFG4] = rx_config->bandwidth_exponent << 6 | rx_config->bandwidth_mantissa << 4 | rx_config->common.baud_rate_exponent;
     config[MDMCFG3] = rx_config->common.baud_rate_mantissa;
     config[MDMCFG2] = cc1101_get_mdmcfg2(&rx_config->common, rx_config);  
 
-    config[SYNC1] = (rx_config->common.sync_word & 0x0000FF00) >> 8;
-    config[SYNC0] =  rx_config->common.sync_word & 0x000000FF;
+    config[SYNC1] = (rx_config->common.sync_word & 0xFF00) >> 8;
+    config[SYNC0] =  rx_config->common.sync_word & 0xFF;
     
     config[DEVIATN] = rx_config->common.deviation_exponent << 4 | rx_config->common.deviation_mantissa;
 
